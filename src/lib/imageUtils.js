@@ -1,6 +1,6 @@
 const MAX_LONG_EDGE = 500
 
-export async function fileToResizedObjectUrl(file, maxEdge = MAX_LONG_EDGE) {
+export async function fileToResizedImage(file, maxEdge = MAX_LONG_EDGE) {
   const bitmap = await createImageBitmap(file)
   try {
     const longEdge = Math.max(bitmap.width, bitmap.height)
@@ -11,8 +11,9 @@ export async function fileToResizedObjectUrl(file, maxEdge = MAX_LONG_EDGE) {
     const canvas = document.createElement('canvas')
     canvas.width = width
     canvas.height = height
-    const ctx = canvas.getContext('2d')
+    const ctx = canvas.getContext('2d', { willReadFrequently: true })
     ctx.drawImage(bitmap, 0, 0, width, height)
+    const imageData = ctx.getImageData(0, 0, width, height)
 
     const blob = await new Promise((resolve, reject) => {
       canvas.toBlob(
@@ -25,10 +26,19 @@ export async function fileToResizedObjectUrl(file, maxEdge = MAX_LONG_EDGE) {
       )
     })
 
-    return URL.createObjectURL(blob)
+    return {
+      blob,
+      imageData,
+      objectUrl: URL.createObjectURL(blob),
+    }
   } finally {
     bitmap.close()
   }
+}
+
+export async function fileToResizedObjectUrl(file, maxEdge = MAX_LONG_EDGE) {
+  const { objectUrl } = await fileToResizedImage(file, maxEdge)
+  return objectUrl
 }
 
 export function revokeIfBlobUrl(url) {

@@ -68,6 +68,8 @@ h3 {
 button,
 select,
 input[type='text'],
+input[type='email'],
+input[type='password'],
 input[type='file'] {
   font: inherit;
 }
@@ -163,12 +165,38 @@ button:disabled {
 }
 
 input[type='text'],
+input[type='email'],
+input[type='password'],
 select {
   padding: 8px 10px;
   border: 1px solid #cfc6ba;
   border-radius: 6px;
   background: #fff;
   color: #1f1b16;
+}
+
+.account-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  margin: 8px 0 0;
+}
+
+.error.banner {
+  background: #f8e6e2;
+  padding: 10px 12px;
+  border-radius: 8px;
+  margin: 0 0 16px;
+}
+
+.photo-preview {
+  display: block;
+  width: 120px;
+  height: 120px;
+  object-fit: cover;
+  border-radius: 8px;
+  border: 1px solid #e4ddd4;
 }
 
 input[type='color'] {

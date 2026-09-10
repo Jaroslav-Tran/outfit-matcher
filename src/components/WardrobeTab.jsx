@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react'
-import { isSuggestedNeutral, isValidHex, toHex } from '../lib/colorUtils.js'
-import { fileToResizedObjectUrl } from '../lib/imageUtils.js'
+import { useEffect, useRef, useState } from 'react'
+import { isSuggestedNeutral, isValidHex, suggestHexFromImageData, toHex } from '../lib/colorUtils.js'
+import { fileToResizedImage, revokeIfBlobUrl } from '../lib/imageUtils.js'
 import { CATEGORIES, FORMALITIES, FITS, SEASONS, fitLabel, toggleSeason } from '../lib/constants.js'
+import { suggestTagsFromPhoto } from '../lib/suggestTags.js'
 
 function SeasonChecks({ value, onChange, legend = 'Seasons' }) {
   return (
@@ -28,7 +29,7 @@ export default function WardrobeTab({
   onUpdateItem,
   onLoadSample,
 }) {
-  const [file, setFile] = useState(null)
+  const [draft, setDraft] = useState(null)
   const [hex, setHex] = useState('#808080')
   const [category, setCategory] = useState('top')
   const [formality, setFormality] = useState('casual')
@@ -39,6 +40,8 @@ export default function WardrobeTab({
   const [categoryFilter, setCategoryFilter] = useState('all')
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
+  const [suggesting, setSuggesting] = useState(false)
+  const suggestSeq = useRef(0)
 
   const pickerValue = isValidHex(hex) ? toHex(hex) : '#808080'
 
@@ -48,9 +51,50 @@ export default function WardrobeTab({
     }
   }, [hex])
 
+  useEffect(() => {
+    return () => revokeIfBlobUrl(draft?.objectUrl)
+  }, [draft?.objectUrl])
+
+  async function handleFileChange(event) {
+    const file = event.target.files?.[0] || null
+    revokeIfBlobUrl(draft?.objectUrl)
+    setDraft(null)
+    setError('')
+    if (!file) return
+
+    const seq = ++suggestSeq.current
+    setSuggesting(true)
+    try {
+      const processed = await fileToResizedImage(file)
+      if (seq !== suggestSeq.current) {
+        revokeIfBlobUrl(processed.objectUrl)
+        return
+      }
+      setDraft({ blob: processed.blob, objectUrl: processed.objectUrl })
+      const suggestedHex = suggestHexFromImageData(processed.imageData)
+      if (suggestedHex) setHex(suggestedHex)
+
+      const tags = await suggestTagsFromPhoto(processed.blob)
+      if (seq !== suggestSeq.current) return
+      if (tags) {
+        if (tags.category) setCategory(tags.category)
+        if (tags.formality) setFormality(tags.formality)
+        if (tags.fit) setFit(tags.fit)
+        if (tags.seasons?.length) setSeasons(tags.seasons)
+        if (tags.label) setLabel(tags.label)
+      }
+    } catch (err) {
+      if (seq === suggestSeq.current) {
+        setError(err.message || 'Could not process that image.')
+      }
+    } finally {
+      if (seq === suggestSeq.current) setSuggesting(false)
+    }
+  }
+
   async function handleAdd(event) {
     event.preventDefault()
-    if (!file) {
+    if (!draft?.blob) {
       setError('Upload a photo of the item.')
       return
     }
@@ -66,23 +110,25 @@ export default function WardrobeTab({
     setBusy(true)
     setError('')
     try {
-      const imageUrl = await fileToResizedObjectUrl(file)
-      onAddItem({
-        id: crypto.randomUUID(),
-        imageUrl,
-        hex: toHex(hex),
-        category,
-        formality,
-        fit,
-        seasons: [...seasons],
-        isNeutral,
-        label: label.trim() || undefined,
-      })
-      setFile(null)
+      await onAddItem(
+        {
+          id: crypto.randomUUID(),
+          imageUrl: draft.objectUrl,
+          hex: toHex(hex),
+          category,
+          formality,
+          fit,
+          seasons: [...seasons],
+          isNeutral,
+          label: label.trim() || undefined,
+        },
+        draft.blob,
+      )
+      setDraft(null)
       setLabel('')
       event.target.reset()
     } catch (err) {
-      setError(err.message || 'Could not process that image.')
+      setError(err.message || 'Could not save that item.')
     } finally {
       setBusy(false)
     }
@@ -104,9 +150,9 @@ export default function WardrobeTab({
         <div>
           <h2>My Wardrobe</h2>
           <p className="lede">
-            Photograph each piece and tag its color, formality, fit, and seasons
-            by hand. Neutral is suggested from the hex; formality, fit, and
-            season are not inferred from the photo.
+            Photograph each piece. Hex and Neutral are suggested from the pixels;
+            category, formality, fit, seasons, and label can be suggested from the
+            photo. Every field stays editable before you add the item.
           </p>
         </div>
         <button type="button" className="secondary" onClick={onLoadSample}>
@@ -117,13 +163,12 @@ export default function WardrobeTab({
       <form className="stack form-card" onSubmit={handleAdd}>
         <label className="field">
           <span>Photo</span>
-          <input
-            type="file"
-            accept="image/*"
-            capture="environment"
-            onChange={(event) => setFile(event.target.files?.[0] || null)}
-          />
+          <input type="file" accept="image/*" capture="environment" onChange={handleFileChange} />
         </label>
+        {draft?.objectUrl ? (
+          <img className="photo-preview" src={draft.objectUrl} alt="Selected garment" />
+        ) : null}
+        {suggesting ? <p className="hint">Suggesting color and tags from the photo…</p> : null}
 
         <div className="color-row">
           <label className="field">
@@ -195,15 +240,15 @@ export default function WardrobeTab({
           </label>
         </div>
         <p className="hint">
-          Formality is your tag, not a guess from the image: casual = everyday,
+          Formality is your tag unless auto-suggest fills it: casual = everyday,
           smart-casual = polished but not a suit, formal = suit / dress-code.
         </p>
 
         <SeasonChecks value={seasons} onChange={setSeasons} />
 
         {error ? <p className="error">{error}</p> : null}
-        <button type="submit" disabled={busy}>
-          {busy ? 'Adding…' : 'Add item'}
+        <button type="submit" disabled={busy || suggesting}>
+          {busy ? 'Saving…' : 'Add item'}
         </button>
       </form>
 

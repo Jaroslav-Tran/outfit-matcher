@@ -49,7 +49,6 @@ export function createSampleData() {
       formality: 'casual',
       seasons: ['spring', 'summer'],
       isNeutral: true,
-      fit: 'fitted',
     }),
     piece({
       hex: '#708A6D',
@@ -59,7 +58,6 @@ export function createSampleData() {
       formality: 'casual',
       seasons: ['spring', 'summer'],
       isNeutral: false,
-      fit: 'regular',
     }),
     piece({
       hex: '#BA815E',
@@ -69,7 +67,6 @@ export function createSampleData() {
       formality: 'casual',
       seasons: ['spring', 'summer'],
       isNeutral: false,
-      fit: 'fitted',
     }),
     piece({
       hex: '#D5BBA7',
@@ -79,7 +76,6 @@ export function createSampleData() {
       formality: 'casual',
       seasons: ['spring', 'summer', 'fall'],
       isNeutral: true,
-      fit: 'regular',
     }),
     piece({
       hex: '#EEE0D1',
@@ -89,7 +85,6 @@ export function createSampleData() {
       formality: 'casual',
       seasons: ['spring', 'summer', 'fall', 'winter'],
       isNeutral: true,
-      fit: 'regular',
     }),
     piece({
       hex: '#4E8288',
@@ -99,7 +94,6 @@ export function createSampleData() {
       formality: 'casual',
       seasons: ['spring', 'summer'],
       isNeutral: false,
-      fit: 'regular',
     }),
     piece({
       hex: '#4D648F',
@@ -109,7 +103,6 @@ export function createSampleData() {
       formality: 'casual',
       seasons: ['fall', 'winter'],
       isNeutral: false,
-      fit: 'relaxed',
     }),
     piece({
       hex: '#8E9B76',
@@ -119,7 +112,6 @@ export function createSampleData() {
       formality: 'casual',
       seasons: ['spring', 'summer', 'fall', 'winter'],
       isNeutral: false,
-      fit: 'relaxed',
     }),
     piece({
       hex: '#735742',
@@ -129,7 +121,6 @@ export function createSampleData() {
       formality: 'casual',
       seasons: ['fall', 'winter'],
       isNeutral: true,
-      fit: 'regular',
     }),
     piece({
       hex: '#735742',
@@ -139,7 +130,6 @@ export function createSampleData() {
       formality: 'casual',
       seasons: ['fall', 'winter'],
       isNeutral: true,
-      fit: 'relaxed',
     }),
     piece({
       hex: '#DCAB3F',
@@ -149,7 +139,6 @@ export function createSampleData() {
       formality: 'casual',
       seasons: ['spring', 'fall', 'winter'],
       isNeutral: false,
-      fit: 'regular',
     }),
     piece({
       hex: '#979797',
@@ -159,7 +148,6 @@ export function createSampleData() {
       formality: 'casual',
       seasons: ['fall', 'winter'],
       isNeutral: true,
-      fit: 'relaxed',
     }),
     piece({
       hex: '#C497A6',
@@ -169,7 +157,6 @@ export function createSampleData() {
       formality: 'smart-casual',
       seasons: ['spring', 'summer', 'fall'],
       isNeutral: false,
-      fit: 'fitted',
     }),
     piece({
       hex: '#4D648F',
@@ -179,7 +166,6 @@ export function createSampleData() {
       formality: 'smart-casual',
       seasons: ['spring', 'summer', 'fall', 'winter'],
       isNeutral: true,
-      fit: 'fitted',
     }),
     piece({
       hex: '#BD996F',
@@ -189,7 +175,6 @@ export function createSampleData() {
       formality: 'smart-casual',
       seasons: ['spring', 'fall', 'winter'],
       isNeutral: true,
-      fit: 'fitted',
     }),
   ]
 

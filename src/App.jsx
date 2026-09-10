@@ -1,9 +1,21 @@
 import { useEffect, useRef, useState } from 'react'
+import AuthScreen from './components/AuthScreen.jsx'
 import PaletteTab from './components/PaletteTab.jsx'
 import WardrobeTab from './components/WardrobeTab.jsx'
 import OutfitTab from './components/OutfitTab.jsx'
 import { createSampleData } from './lib/sampleData.js'
 import { revokeIfBlobUrl } from './lib/imageUtils.js'
+import { supabase, supabaseConfigured } from './lib/supabase.js'
+import {
+  deletePaletteColor,
+  deleteWardrobeItemRow,
+  insertPaletteColor,
+  insertWardrobeItem,
+  loadPalette,
+  loadWardrobe,
+  replaceAllData,
+  updateWardrobeItemRow,
+} from './lib/persistence.js'
 import './App.css'
 
 const TABS = [
@@ -14,8 +26,12 @@ const TABS = [
 
 function App() {
   const [tab, setTab] = useState('palette')
+  const [user, setUser] = useState(null)
+  const [authReady, setAuthReady] = useState(!supabaseConfigured)
+  const [hydrating, setHydrating] = useState(false)
   const [palette, setPalette] = useState([])
   const [wardrobe, setWardrobe] = useState([])
+  const [persistError, setPersistError] = useState('')
   const wardrobeRef = useRef(wardrobe)
   wardrobeRef.current = wardrobe
 
@@ -25,46 +41,183 @@ function App() {
     }
   }, [])
 
-  function addPaletteColor(color) {
-    setPalette((current) => [...current, color])
-  }
-
-  function removePaletteColor(id) {
-    setPalette((current) => current.filter((color) => color.id !== id))
-  }
-
-  function addWardrobeItem(item) {
-    setWardrobe((current) => [...current, item])
-  }
-
-  function removeWardrobeItem(id) {
-    setWardrobe((current) => {
-      const item = current.find((entry) => entry.id === id)
-      if (item) revokeIfBlobUrl(item.imageUrl)
-      return current.filter((entry) => entry.id !== id)
+  useEffect(() => {
+    if (!supabase) return undefined
+    let cancelled = false
+    supabase.auth.getSession().then(({ data }) => {
+      if (!cancelled) {
+        setUser(data.session?.user ?? null)
+        setAuthReady(true)
+      }
     })
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null)
+    })
+    return () => {
+      cancelled = true
+      subscription.unsubscribe()
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!user) {
+      setPalette([])
+      setWardrobe([])
+      setHydrating(false)
+      return undefined
+    }
+
+    let cancelled = false
+    setHydrating(true)
+    setPersistError('')
+    Promise.all([loadPalette(user.id), loadWardrobe(user.id)])
+      .then(([nextPalette, nextWardrobe]) => {
+        if (cancelled) return
+        wardrobeRef.current.forEach((item) => revokeIfBlobUrl(item.imageUrl))
+        setPalette(nextPalette)
+        setWardrobe(nextWardrobe)
+      })
+      .catch((error) => {
+        if (!cancelled) {
+          setPersistError(
+            error.message ||
+              'Could not load your wardrobe. Run supabase/schema.sql in the SQL Editor if tables are missing.',
+          )
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setHydrating(false)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [user])
+
+  async function addPaletteColor(color) {
+    setPalette((current) => [...current, color])
+    setPersistError('')
+    try {
+      await insertPaletteColor(user.id, color)
+    } catch (error) {
+      setPalette((current) => current.filter((entry) => entry.id !== color.id))
+      setPersistError(error.message || 'Could not save that color.')
+    }
   }
 
-  function updateWardrobeItem(id, patch) {
+  async function removePaletteColor(id) {
+    const previous = palette
+    setPalette((current) => current.filter((color) => color.id !== id))
+    setPersistError('')
+    try {
+      await deletePaletteColor(user.id, id)
+    } catch (error) {
+      setPalette(previous)
+      setPersistError(error.message || 'Could not delete that color.')
+    }
+  }
+
+  async function addWardrobeItem(item, blob) {
+    setPersistError('')
+    const saved = await insertWardrobeItem(user.id, item, blob)
+    setWardrobe((current) => [...current, saved])
+    return saved
+  }
+
+  async function removeWardrobeItem(id) {
+    const item = wardrobe.find((entry) => entry.id === id)
+    if (!item) return
+    const previous = wardrobe
+    setWardrobe((current) => current.filter((entry) => entry.id !== id))
+    setPersistError('')
+    try {
+      await deleteWardrobeItemRow(user.id, item)
+    } catch (error) {
+      setWardrobe(previous)
+      setPersistError(error.message || 'Could not delete that item.')
+    }
+  }
+
+  async function updateWardrobeItem(id, patch) {
+    const previous = wardrobe
     setWardrobe((current) =>
       current.map((item) => (item.id === id ? { ...item, ...patch } : item)),
     )
+    setPersistError('')
+    try {
+      await updateWardrobeItemRow(user.id, id, patch)
+    } catch (error) {
+      setWardrobe(previous)
+      setPersistError(error.message || 'Could not update that item.')
+    }
   }
 
-  function loadSampleData() {
+  async function loadSampleData() {
     wardrobeRef.current.forEach((item) => revokeIfBlobUrl(item.imageUrl))
     const sample = createSampleData()
-    setPalette(sample.palette)
-    setWardrobe(sample.wardrobe)
-    setTab('wardrobe')
+    setPersistError('')
+    try {
+      const saved = await replaceAllData(user.id, sample.palette, sample.wardrobe)
+      setPalette(sample.palette)
+      setWardrobe(saved)
+      setTab('wardrobe')
+    } catch (error) {
+      setPersistError(error.message || 'Could not save sample data.')
+    }
+  }
+
+  async function signOut() {
+    wardrobeRef.current.forEach((item) => revokeIfBlobUrl(item.imageUrl))
+    setPalette([])
+    setWardrobe([])
+    await supabase.auth.signOut()
+  }
+
+  if (!supabaseConfigured) {
+    return (
+      <div className="app">
+        <header className="app-header">
+          <div>
+            <p className="eyebrow">Supabase not configured</p>
+            <h1>Outfit Matcher</h1>
+          </div>
+        </header>
+        <section className="panel">
+          <p className="lede">
+            Copy <code>.env.example</code> to <code>.env.local</code> and add your
+            project URL and publishable key, then restart the dev server.
+          </p>
+        </section>
+      </div>
+    )
+  }
+
+  if (!authReady) {
+    return (
+      <div className="app">
+        <p className="empty">Checking sign-in…</p>
+      </div>
+    )
+  }
+
+  if (!user) {
+    return <AuthScreen onSignedIn={setUser} />
   }
 
   return (
     <div className="app">
       <header className="app-header">
         <div>
-          <p className="eyebrow">Local only · session state</p>
+          <p className="eyebrow">Saved to your account · laptop and phone</p>
           <h1>Outfit Matcher</h1>
+          <p className="account-bar">
+            <span className="muted">{user.email}</span>
+            <button type="button" className="linkish" onClick={signOut}>
+              Sign out
+            </button>
+          </p>
         </div>
         <nav className="tabs" aria-label="Main">
           {TABS.map((entry) => (
@@ -79,6 +232,9 @@ function App() {
           ))}
         </nav>
       </header>
+
+      {persistError ? <p className="error banner">{persistError}</p> : null}
+      {hydrating ? <p className="empty">Loading your wardrobe…</p> : null}
 
       <div hidden={tab !== 'palette'}>
         <PaletteTab

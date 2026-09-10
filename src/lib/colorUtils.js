@@ -145,3 +145,37 @@ export function annotateWardrobeWithPalette(wardrobe, palette) {
     }
   })
 }
+
+export function suggestHexFromImageData(imageData) {
+  if (!imageData?.data?.length) return null
+  const { data, width, height } = imageData
+  const buckets = new Map()
+  const marginX = Math.floor(width * 0.18)
+  const marginY = Math.floor(height * 0.18)
+
+  for (let y = marginY; y < height - marginY; y += 3) {
+    for (let x = marginX; x < width - marginX; x += 3) {
+      const i = (y * width + x) * 4
+      const r = data[i]
+      const g = data[i + 1]
+      const b = data[i + 2]
+      const a = data[i + 3]
+      if (a < 128) continue
+      if (r > 248 && g > 248 && b > 248) continue
+      const key = `${r >> 4}-${g >> 4}-${b >> 4}`
+      const current = buckets.get(key) || { n: 0, r: 0, g: 0, b: 0 }
+      current.n += 1
+      current.r += r
+      current.g += g
+      current.b += b
+      buckets.set(key, current)
+    }
+  }
+
+  let best = null
+  for (const bucket of buckets.values()) {
+    if (!best || bucket.n > best.n) best = bucket
+  }
+  if (!best) return null
+  return chroma(best.r / best.n, best.g / best.n, best.b / best.n).hex()
+}
