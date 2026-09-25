@@ -1,6 +1,13 @@
 import { supabase } from './supabase.js'
 import { CATEGORIES, FITS, FORMALITIES, SEASONS } from './constants.js'
 
+export class SuggestLimitError extends Error {
+  constructor(message = 'Daily AI tagging limit reached — add tags manually for now') {
+    super(message)
+    this.name = 'SuggestLimitError'
+  }
+}
+
 function blobToBase64(blob) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader()
@@ -14,25 +21,30 @@ function blobToBase64(blob) {
   })
 }
 
+function isRateLimited(data, error) {
+  const status = error?.context?.status || error?.status
+  const body = data || {}
+  return status === 429 || body.error === 'rate_limited'
+}
+
 export async function suggestTagsFromPhoto(blob) {
   if (!supabase) return null
-  try {
-    const imageBase64 = await blobToBase64(blob)
-    const { data, error } = await supabase.functions.invoke('suggest-garment', {
-      body: { imageBase64, mimeType: blob.type || 'image/jpeg' },
-    })
-    if (error || !data || data.error) return null
-
-    const category = CATEGORIES.includes(data.category) ? data.category : null
-    const formality = FORMALITIES.includes(data.formality) ? data.formality : null
-    const fit = FITS.includes(data.fit) ? data.fit : null
-    const seasons = Array.isArray(data.seasons)
-      ? data.seasons.filter((season) => SEASONS.includes(season))
-      : []
-    const label = typeof data.label === 'string' ? data.label.trim() : ''
-
-    return { category, formality, fit, seasons, label }
-  } catch {
-    return null
+  const imageBase64 = await blobToBase64(blob)
+  const { data, error } = await supabase.functions.invoke('suggest-garment', {
+    body: { imageBase64, mimeType: blob.type || 'image/jpeg' },
+  })
+  if (isRateLimited(data, error)) {
+    throw new SuggestLimitError(data?.message)
   }
+  if (error || !data || data.error) return null
+
+  const category = CATEGORIES.includes(data.category) ? data.category : null
+  const formality = FORMALITIES.includes(data.formality) ? data.formality : null
+  const fit = FITS.includes(data.fit) ? data.fit : null
+  const seasons = Array.isArray(data.seasons)
+    ? data.seasons.filter((season) => SEASONS.includes(season))
+    : []
+  const label = typeof data.label === 'string' ? data.label.trim() : ''
+
+  return { category, formality, fit, seasons, label }
 }

@@ -3,6 +3,10 @@ import { revokeIfBlobUrl } from './imageUtils.js'
 
 const BUCKET = 'wardrobe'
 
+function paletteReferencePath(userId) {
+  return `${userId}/palette-reference.jpg`
+}
+
 function throwIfError(error) {
   if (error) throw error
 }
@@ -46,9 +50,40 @@ export async function insertPaletteColor(userId, color) {
   throwIfError(error)
 }
 
+export async function insertPaletteColors(userId, colors) {
+  if (!colors?.length) return
+  const { error } = await supabase.from('palette_colors').insert(
+    colors.map((color) => ({
+      id: color.id,
+      user_id: userId,
+      hex: color.hex,
+      label: color.label || null,
+    })),
+  )
+  throwIfError(error)
+}
+
 export async function deletePaletteColor(userId, id) {
   const { error } = await supabase.from('palette_colors').delete().eq('user_id', userId).eq('id', id)
   throwIfError(error)
+}
+
+export async function loadPaletteReference(userId) {
+  const { data, error } = await supabase.storage
+    .from(BUCKET)
+    .createSignedUrl(paletteReferencePath(userId), 60 * 60 * 24 * 7)
+  if (error || !data?.signedUrl) return ''
+  return data.signedUrl
+}
+
+export async function savePaletteReference(userId, blob) {
+  const path = paletteReferencePath(userId)
+  const { error } = await supabase.storage.from(BUCKET).upload(path, blob, {
+    contentType: blob.type || 'image/jpeg',
+    upsert: true,
+  })
+  throwIfError(error)
+  return signUrl(path)
 }
 
 function rowToItem(row, imageUrl) {
@@ -81,6 +116,7 @@ export async function loadWardrobe(userId) {
 
 export async function insertWardrobeItem(userId, item, blob) {
   const { ext, contentType } = extensionFor(blob)
+  // Storage RLS: first folder must be auth.uid(). Item id is a UUID from the client.
   const path = `${userId}/${item.id}.${ext}`
   const { error: uploadError } = await supabase.storage.from(BUCKET).upload(path, blob, {
     contentType,

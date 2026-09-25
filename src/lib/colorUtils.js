@@ -146,22 +146,44 @@ export function annotateWardrobeWithPalette(wardrobe, palette) {
   })
 }
 
-export function suggestHexFromImageData(imageData) {
-  if (!imageData?.data?.length) return null
+export const PALETTE_SNAP_DELTA_E = 18
+
+export function isNearExistingColor(hex, colors, threshold = SAME_COLOR_DELTA_E) {
+  if (!isValidHex(hex) || !colors?.length) return false
+  return colors.some((color) => {
+    const other = typeof color === 'string' ? color : color.hex
+    return deltaE(hex, other) < threshold
+  })
+}
+
+function extractDominantColors(imageData, options = {}) {
+  if (!imageData?.data?.length) return []
+  const {
+    maxColors = 12,
+    marginRatio = 0.04,
+    step = 2,
+    skipNearWhite = true,
+    skipNearBlack = false,
+    minShare = 0.003,
+  } = options
+
   const { data, width, height } = imageData
   const buckets = new Map()
-  const marginX = Math.floor(width * 0.18)
-  const marginY = Math.floor(height * 0.18)
+  const marginX = Math.floor(width * marginRatio)
+  const marginY = Math.floor(height * marginRatio)
+  let sampled = 0
 
-  for (let y = marginY; y < height - marginY; y += 3) {
-    for (let x = marginX; x < width - marginX; x += 3) {
+  for (let y = marginY; y < height - marginY; y += step) {
+    for (let x = marginX; x < width - marginX; x += step) {
       const i = (y * width + x) * 4
       const r = data[i]
       const g = data[i + 1]
       const b = data[i + 2]
       const a = data[i + 3]
       if (a < 128) continue
-      if (r > 248 && g > 248 && b > 248) continue
+      if (skipNearWhite && r > 246 && g > 246 && b > 246) continue
+      if (skipNearBlack && r < 18 && g < 18 && b < 18) continue
+      sampled += 1
       const key = `${r >> 4}-${g >> 4}-${b >> 4}`
       const current = buckets.get(key) || { n: 0, r: 0, g: 0, b: 0 }
       current.n += 1
@@ -172,10 +194,84 @@ export function suggestHexFromImageData(imageData) {
     }
   }
 
-  let best = null
+  if (!sampled) return []
+
+  const candidates = []
   for (const bucket of buckets.values()) {
-    if (!best || bucket.n > best.n) best = bucket
+    const share = bucket.n / sampled
+    if (share < minShare) continue
+    const hex = chroma(bucket.r / bucket.n, bucket.g / bucket.n, bucket.b / bucket.n).hex()
+    const sat = chroma(hex).get('hsl.s') || 0
+    candidates.push({
+      hex,
+      n: bucket.n,
+      share,
+      score: bucket.n * (0.35 + sat),
+    })
   }
-  if (!best) return null
-  return chroma(best.r / best.n, best.g / best.n, best.b / best.n).hex()
+
+  candidates.sort((a, b) => b.score - a.score)
+  const merged = []
+  for (const color of candidates) {
+    const existing = merged.find((entry) => deltaE(entry.hex, color.hex) < SAME_COLOR_DELTA_E)
+    if (existing) {
+      existing.n += color.n
+      existing.share += color.share
+      existing.score += color.score
+      continue
+    }
+    merged.push({ ...color })
+  }
+
+  return merged
+    .sort((a, b) => b.score - a.score)
+    .slice(0, maxColors)
+    .map(({ hex, share }) => ({ hex, share }))
+}
+
+export function extractPaletteFromImageData(imageData) {
+  return extractDominantColors(imageData, {
+    maxColors: 16,
+    marginRatio: 0.02,
+    step: 2,
+    skipNearWhite: true,
+    skipNearBlack: true,
+    minShare: 0.004,
+  })
+}
+
+export function extractGarmentColors(imageData) {
+  return extractDominantColors(imageData, {
+    maxColors: 4,
+    marginRatio: 0.16,
+    step: 3,
+    skipNearWhite: true,
+    skipNearBlack: false,
+    minShare: 0.02,
+  })
+}
+
+export function suggestHexFromImageData(imageData) {
+  return extractGarmentColors(imageData)[0]?.hex || null
+}
+
+export function suggestClothHex(photoHex, palette) {
+  if (!isValidHex(photoHex)) {
+    return { hex: null, source: 'photo', match: null, deltaE: Infinity }
+  }
+  const match = findClosestPaletteColor(photoHex, palette)
+  if (match.closestPaletteMatch && match.deltaE < PALETTE_SNAP_DELTA_E) {
+    return {
+      hex: match.closestPaletteMatch.hex,
+      source: 'palette',
+      match: match.closestPaletteMatch,
+      deltaE: match.deltaE,
+    }
+  }
+  return {
+    hex: toHex(photoHex),
+    source: 'photo',
+    match: match.closestPaletteMatch,
+    deltaE: match.deltaE,
+  }
 }

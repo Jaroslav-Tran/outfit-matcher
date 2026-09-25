@@ -1,8 +1,15 @@
 import { useEffect, useRef, useState } from 'react'
-import { isSuggestedNeutral, isValidHex, suggestHexFromImageData, toHex } from '../lib/colorUtils.js'
+import {
+  extractGarmentColors,
+  findClosestPaletteColor,
+  isSuggestedNeutral,
+  isValidHex,
+  suggestClothHex,
+  toHex,
+} from '../lib/colorUtils.js'
 import { fileToResizedImage, revokeIfBlobUrl } from '../lib/imageUtils.js'
 import { CATEGORIES, FORMALITIES, FITS, SEASONS, fitLabel, toggleSeason } from '../lib/constants.js'
-import { suggestTagsFromPhoto } from '../lib/suggestTags.js'
+import { SuggestLimitError, suggestTagsFromPhoto } from '../lib/suggestTags.js'
 
 function SeasonChecks({ value, onChange, legend = 'Seasons' }) {
   return (
@@ -22,14 +29,62 @@ function SeasonChecks({ value, onChange, legend = 'Seasons' }) {
   )
 }
 
+function ColorSuggestions({ photoColors, palette, hex, onPick }) {
+  const primary = photoColors[0]?.hex
+  const suggestion = primary ? suggestClothHex(primary, palette) : null
+  const paletteMatch = hex ? findClosestPaletteColor(hex, palette) : { closestPaletteMatch: null, deltaE: Infinity }
+
+  return (
+    <div className="extract-block">
+      <p className="hint">
+        {palette.length === 0
+          ? 'Dominant colors from the photo. A striped or printed piece is stored as one hero color — tap the stripe you want outfits to use. Add a palette to snap to your color analysis.'
+          : suggestion?.source === 'palette'
+            ? `Closest analysis color: ${suggestion.match.label || suggestion.match.hex} (ΔE ${suggestion.deltaE.toFixed(1)}). Tap another swatch if this piece should match a different color.`
+            : paletteMatch.closestPaletteMatch
+              ? `Using the photo color. Closest analysis color is ${paletteMatch.closestPaletteMatch.label || paletteMatch.closestPaletteMatch.hex} (ΔE ${paletteMatch.deltaE.toFixed(1)}).`
+              : 'Dominant colors from the photo. Tap the hero color outfits should use.'}
+      </p>
+      <ul className="extract-grid">
+        {photoColors.map((color, index) => (
+          <li key={`photo-${color.hex}`}>
+            <button
+              type="button"
+              className={`extract-swatch${toHex(hex) === color.hex ? ' selected' : ''}`}
+              style={{ background: color.hex }}
+              title={color.hex}
+              onClick={() => onPick(color.hex)}
+            />
+            <span className="muted">{index === 0 ? 'photo' : 'also'}</span>
+          </li>
+        ))}
+        {palette.map((color) => (
+          <li key={`palette-${color.id}`}>
+            <button
+              type="button"
+              className={`extract-swatch${toHex(hex) === toHex(color.hex) ? ' selected' : ''}`}
+              style={{ background: color.hex }}
+              title={color.label || color.hex}
+              onClick={() => onPick(color.hex)}
+            />
+            <span className="muted">{color.label || 'palette'}</span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  )
+}
+
 export default function WardrobeTab({
   wardrobe,
+  palette = [],
   onAddItem,
   onRemoveItem,
   onUpdateItem,
   onLoadSample,
 }) {
   const [draft, setDraft] = useState(null)
+  const [photoColors, setPhotoColors] = useState([])
   const [hex, setHex] = useState('#808080')
   const [category, setCategory] = useState('top')
   const [formality, setFormality] = useState('casual')
@@ -59,6 +114,7 @@ export default function WardrobeTab({
     const file = event.target.files?.[0] || null
     revokeIfBlobUrl(draft?.objectUrl)
     setDraft(null)
+    setPhotoColors([])
     setError('')
     if (!file) return
 
@@ -71,17 +127,27 @@ export default function WardrobeTab({
         return
       }
       setDraft({ blob: processed.blob, objectUrl: processed.objectUrl })
-      const suggestedHex = suggestHexFromImageData(processed.imageData)
-      if (suggestedHex) setHex(suggestedHex)
+      const colors = extractGarmentColors(processed.imageData)
+      setPhotoColors(colors)
+      if (colors[0]?.hex) {
+        const suggestion = suggestClothHex(colors[0].hex, palette)
+        if (suggestion.hex) setHex(suggestion.hex)
+      }
 
-      const tags = await suggestTagsFromPhoto(processed.blob)
-      if (seq !== suggestSeq.current) return
-      if (tags) {
-        if (tags.category) setCategory(tags.category)
-        if (tags.formality) setFormality(tags.formality)
-        if (tags.fit) setFit(tags.fit)
-        if (tags.seasons?.length) setSeasons(tags.seasons)
-        if (tags.label) setLabel(tags.label)
+      try {
+        const tags = await suggestTagsFromPhoto(processed.blob)
+        if (seq !== suggestSeq.current) return
+        if (tags) {
+          if (tags.category) setCategory(tags.category)
+          if (tags.formality) setFormality(tags.formality)
+          if (tags.fit) setFit(tags.fit)
+          if (tags.seasons?.length) setSeasons(tags.seasons)
+          if (tags.label) setLabel(tags.label)
+        }
+      } catch (suggestError) {
+        if (seq === suggestSeq.current && suggestError instanceof SuggestLimitError) {
+          setError(suggestError.message)
+        }
       }
     } catch (err) {
       if (seq === suggestSeq.current) {
@@ -125,6 +191,7 @@ export default function WardrobeTab({
         draft.blob,
       )
       setDraft(null)
+      setPhotoColors([])
       setLabel('')
       event.target.reset()
     } catch (err) {
@@ -150,9 +217,10 @@ export default function WardrobeTab({
         <div>
           <h2>My Wardrobe</h2>
           <p className="lede">
-            Photograph each piece. Hex and Neutral are suggested from the pixels;
-            category, formality, fit, seasons, and label can be suggested from the
-            photo. Every field stays editable before you add the item.
+            Photograph each piece. The photo suggests its dominant colors; if
+            you have a palette, the closest analysis color is selected when it
+            is a close match. Category, formality, fit, seasons, and label can
+            be suggested from the photo. Every field stays editable.
           </p>
         </div>
         <button type="button" className="secondary" onClick={onLoadSample}>
@@ -169,6 +237,14 @@ export default function WardrobeTab({
           <img className="photo-preview" src={draft.objectUrl} alt="Selected garment" />
         ) : null}
         {suggesting ? <p className="hint">Suggesting color and tags from the photo…</p> : null}
+        {photoColors.length ? (
+          <ColorSuggestions
+            photoColors={photoColors}
+            palette={palette}
+            hex={hex}
+            onPick={(value) => setHex(value)}
+          />
+        ) : null}
 
         <div className="color-row">
           <label className="field">
@@ -314,7 +390,7 @@ export default function WardrobeTab({
                     />
                     <button
                       type="button"
-                      className="linkish"
+                      className="remove-btn"
                       onClick={() => onRemoveItem(item.id)}
                     >
                       Delete

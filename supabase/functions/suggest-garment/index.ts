@@ -1,3 +1,4 @@
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.1'
 import { corsHeaders } from '../_shared/cors.ts'
 
 const SYSTEM = `You tag one clothing photo for a wardrobe app.
@@ -13,6 +14,44 @@ Deno.serve(async (req) => {
   }
 
   try {
+    const authHeader = req.headers.get('Authorization') || ''
+    if (!authHeader.startsWith('Bearer ')) {
+      return json({ error: 'Sign in required' }, 401)
+    }
+
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')
+    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')
+    if (!supabaseUrl || !supabaseAnonKey) {
+      return json({ error: 'Supabase env is not set' }, 500)
+    }
+
+    const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: authHeader } },
+    })
+    const {
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser()
+    if (userError || !user) return json({ error: 'Sign in required' }, 401)
+
+    const cap = Number.parseInt(Deno.env.get('SUGGEST_GARMENT_DAILY_CAP') || '50', 10)
+    const { data: callCount, error: usageError } = await supabase.rpc(
+      'increment_edge_function_usage',
+      { fn_name: 'suggest-garment' },
+    )
+    if (usageError) {
+      return json({ error: 'Rate limit check failed', detail: usageError.message }, 503)
+    }
+    if (Number(callCount) > cap) {
+      return json(
+        {
+          error: 'rate_limited',
+          message: 'Daily AI tagging limit reached — add tags manually for now',
+        },
+        429,
+      )
+    }
+
     const apiKey = Deno.env.get('ANTHROPIC_API_KEY')
     if (!apiKey) {
       return json({ error: 'ANTHROPIC_API_KEY is not set' }, 500)

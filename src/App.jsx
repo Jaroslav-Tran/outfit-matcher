@@ -10,12 +10,16 @@ import {
   deletePaletteColor,
   deleteWardrobeItemRow,
   insertPaletteColor,
+  insertPaletteColors,
   insertWardrobeItem,
   loadPalette,
+  loadPaletteReference,
   loadWardrobe,
   replaceAllData,
+  savePaletteReference,
   updateWardrobeItemRow,
 } from './lib/persistence.js'
+import { downloadJson, exportFilename, fetchClosetExport } from './lib/exportCloset.js'
 import './App.css'
 
 const TABS = [
@@ -30,8 +34,10 @@ function App() {
   const [authReady, setAuthReady] = useState(!supabaseConfigured)
   const [hydrating, setHydrating] = useState(false)
   const [palette, setPalette] = useState([])
+  const [paletteReferenceUrl, setPaletteReferenceUrl] = useState('')
   const [wardrobe, setWardrobe] = useState([])
   const [persistError, setPersistError] = useState('')
+  const [exporting, setExporting] = useState(false)
   const wardrobeRef = useRef(wardrobe)
   wardrobeRef.current = wardrobe
 
@@ -64,6 +70,7 @@ function App() {
   useEffect(() => {
     if (!user) {
       setPalette([])
+      setPaletteReferenceUrl('')
       setWardrobe([])
       setHydrating(false)
       return undefined
@@ -72,12 +79,13 @@ function App() {
     let cancelled = false
     setHydrating(true)
     setPersistError('')
-    Promise.all([loadPalette(user.id), loadWardrobe(user.id)])
-      .then(([nextPalette, nextWardrobe]) => {
+    Promise.all([loadPalette(user.id), loadWardrobe(user.id), loadPaletteReference(user.id)])
+      .then(([nextPalette, nextWardrobe, nextReference]) => {
         if (cancelled) return
         wardrobeRef.current.forEach((item) => revokeIfBlobUrl(item.imageUrl))
         setPalette(nextPalette)
         setWardrobe(nextWardrobe)
+        setPaletteReferenceUrl(nextReference)
       })
       .catch((error) => {
         if (!cancelled) {
@@ -107,6 +115,19 @@ function App() {
     }
   }
 
+  async function addPaletteColors(colors) {
+    if (!colors?.length) return
+    setPalette((current) => [...current, ...colors])
+    setPersistError('')
+    try {
+      await insertPaletteColors(user.id, colors)
+    } catch (error) {
+      const ids = new Set(colors.map((color) => color.id))
+      setPalette((current) => current.filter((entry) => !ids.has(entry.id)))
+      setPersistError(error.message || 'Could not save those colors.')
+    }
+  }
+
   async function removePaletteColor(id) {
     const previous = palette
     setPalette((current) => current.filter((color) => color.id !== id))
@@ -117,6 +138,13 @@ function App() {
       setPalette(previous)
       setPersistError(error.message || 'Could not delete that color.')
     }
+  }
+
+  async function savePaletteScreenshot(blob) {
+    setPersistError('')
+    const url = await savePaletteReference(user.id, blob)
+    setPaletteReferenceUrl(url)
+    return url
   }
 
   async function addWardrobeItem(item, blob) {
@@ -168,9 +196,23 @@ function App() {
     }
   }
 
+  async function exportCloset() {
+    setPersistError('')
+    setExporting(true)
+    try {
+      const payload = await fetchClosetExport(user.id)
+      downloadJson(exportFilename(new Date(payload.exported_at)), payload)
+    } catch (error) {
+      setPersistError(error.message || 'Could not export your closet.')
+    } finally {
+      setExporting(false)
+    }
+  }
+
   async function signOut() {
     wardrobeRef.current.forEach((item) => revokeIfBlobUrl(item.imageUrl))
     setPalette([])
+    setPaletteReferenceUrl('')
     setWardrobe([])
     await supabase.auth.signOut()
   }
@@ -214,9 +256,16 @@ function App() {
           <h1>Outfit Matcher</h1>
           <p className="account-bar">
             <span className="muted">{user.email}</span>
+            <button type="button" className="secondary" disabled={exporting} onClick={exportCloset}>
+              {exporting ? 'Exporting…' : 'Export my closet'}
+            </button>
             <button type="button" className="linkish" onClick={signOut}>
               Sign out
             </button>
+          </p>
+          <p className="hint">
+            Photos stay in Supabase Storage; export downloads your tags and colors
+            only.
           </p>
         </div>
         <nav className="tabs" aria-label="Main">
@@ -239,13 +288,17 @@ function App() {
       <div hidden={tab !== 'palette'}>
         <PaletteTab
           palette={palette}
+          savedReferenceUrl={paletteReferenceUrl}
           onAddColor={addPaletteColor}
+          onAddColors={addPaletteColors}
           onRemoveColor={removePaletteColor}
+          onSaveReference={savePaletteScreenshot}
         />
       </div>
       <div hidden={tab !== 'wardrobe'}>
         <WardrobeTab
           wardrobe={wardrobe}
+          palette={palette}
           onAddItem={addWardrobeItem}
           onRemoveItem={removeWardrobeItem}
           onUpdateItem={updateWardrobeItem}

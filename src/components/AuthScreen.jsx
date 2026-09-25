@@ -1,41 +1,38 @@
 import { useState } from 'react'
 import { supabase } from '../lib/supabase.js'
 
+function authErrorMessage(error) {
+  const text = `${error?.code || ''} ${error?.message || ''}`.toLowerCase()
+  if (
+    text.includes('signup') ||
+    text.includes('sign-up') ||
+    text.includes('sign up') ||
+    text.includes('signups not allowed')
+  ) {
+    return 'Sign-ups are currently closed.'
+  }
+  return error?.message || 'Could not sign in.'
+}
+
 export default function AuthScreen({ onSignedIn }) {
-  const [mode, setMode] = useState('signin')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
-  const [info, setInfo] = useState('')
   const [busy, setBusy] = useState(false)
 
   async function handleSubmit(event) {
     event.preventDefault()
     setError('')
-    setInfo('')
     setBusy(true)
     try {
-      if (mode === 'signin') {
-        const { data, error: signError } = await supabase.auth.signInWithPassword({
-          email: email.trim(),
-          password,
-        })
-        if (signError) throw signError
-        onSignedIn(data.session.user)
-        return
-      }
-      const { data, error: signError } = await supabase.auth.signUp({
+      const { data, error: signError } = await supabase.auth.signInWithPassword({
         email: email.trim(),
         password,
       })
       if (signError) throw signError
-      if (data.session?.user) {
-        onSignedIn(data.session.user)
-        return
-      }
-      setInfo('Check your email to confirm the account, then sign in.')
+      onSignedIn(data.session.user)
     } catch (err) {
-      setError(err.message || 'Could not sign in.')
+      setError(authErrorMessage(err))
     } finally {
       setBusy(false)
     }
@@ -50,10 +47,10 @@ export default function AuthScreen({ onSignedIn }) {
         </div>
       </header>
       <section className="panel">
-        <h2>{mode === 'signin' ? 'Sign in' : 'Create account'}</h2>
+        <h2>Sign in</h2>
         <p className="lede">
-          Use the same email on your laptop and phone. Wardrobe rows are private
-          to this login.
+          Use the same email on your laptop and phone. New accounts are closed;
+          sign-in still works for the existing user.
         </p>
         <form className="stack form-card" onSubmit={handleSubmit}>
           <label className="field">
@@ -74,26 +71,14 @@ export default function AuthScreen({ onSignedIn }) {
               onChange={(event) => setPassword(event.target.value)}
               required
               minLength={6}
-              autoComplete={mode === 'signin' ? 'current-password' : 'new-password'}
+              autoComplete="current-password"
             />
           </label>
           {error ? <p className="error">{error}</p> : null}
-          {info ? <p className="hint">{info}</p> : null}
           <button type="submit" disabled={busy}>
-            {busy ? 'Please wait…' : mode === 'signin' ? 'Sign in' : 'Create account'}
+            {busy ? 'Please wait…' : 'Sign in'}
           </button>
         </form>
-        <button
-          type="button"
-          className="linkish"
-          onClick={() => {
-            setMode(mode === 'signin' ? 'signup' : 'signin')
-            setError('')
-            setInfo('')
-          }}
-        >
-          {mode === 'signin' ? 'Need an account? Create one' : 'Already have an account? Sign in'}
-        </button>
       </section>
     </div>
   )
