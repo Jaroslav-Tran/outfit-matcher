@@ -9,6 +9,7 @@ import {
   SCHEME_ORDER,
   deltaE,
 } from './colorUtils.js'
+import { comboWeatherBonus } from './weather.js'
 
 export const MAX_COMBINATIONS = 50000
 
@@ -271,7 +272,7 @@ function buildExplanation(combo, colorScheme, fit) {
   return appendix.trim()
 }
 
-function scoreCombo(combo) {
+function scoreCombo(combo, weatherSeasons = null) {
   const nonNeutrals = combo.items.filter((item) => !item.isNeutral)
   let score = 0
 
@@ -290,6 +291,7 @@ function scoreCombo(combo) {
   const fit = analyzeFit(combo)
   score += fit.extraScore
   score += comboRecencyPenalty(combo.items)
+  score += comboWeatherBonus(combo.items, weatherSeasons)
   return { score, fit }
 }
 
@@ -305,6 +307,7 @@ export function generateOutfits(
   palette,
   formalityFilter = 'any',
   seasonFilter = 'any',
+  weatherSeasons = null,
 ) {
   if (!wardrobe?.length) return []
 
@@ -334,6 +337,7 @@ export function generateOutfits(
   }
 
   const candidates = enumerateCandidates(annotated, maxAccessories, MAX_COMBINATIONS)
+  const activeWeatherSeasons = weatherSeasons?.length ? weatherSeasons : null
 
   const scored = []
   for (const combo of candidates) {
@@ -347,8 +351,8 @@ export function generateOutfits(
     const colorScheme = detectColorScheme(nonNeutralHexes)
     if (colorScheme === 'unclassified') continue
 
-    // Step 4 — score survivors (uses precomputed deltaE only).
-    const { score, fit } = scoreCombo(combo)
+    // Step 4 — score survivors (palette, fit, recency, optional weather).
+    const { score, fit } = scoreCombo(combo, activeWeatherSeasons)
     scored.push({
       items: combo.items,
       top: combo.top,

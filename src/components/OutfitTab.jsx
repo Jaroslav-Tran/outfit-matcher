@@ -2,6 +2,13 @@ import { useEffect, useState } from 'react'
 import { generateOutfits, localDateISO } from '../lib/outfitGenerator.js'
 import { SCHEME_LABELS } from '../lib/colorUtils.js'
 import { FORMALITIES, SEASONS, fitLabel } from '../lib/constants.js'
+import {
+  resolveWeatherFromLocation,
+  TEMP_BANDS,
+  TEMP_BAND_KEYS,
+  WEATHER_ITEM_BONUS,
+  weatherFromManualBand,
+} from '../lib/weather.js'
 
 const FORMALITY_FILTERS = ['any', ...FORMALITIES]
 const SEASON_FILTERS = ['any', ...SEASONS]
@@ -16,17 +23,47 @@ function slotItems(outfit) {
   ].filter(Boolean)
 }
 
+function weatherSummary(weather) {
+  if (!weather?.band) return ''
+  const label = TEMP_BANDS[weather.band]?.label || weather.band
+  if (weather.source === 'location' && Number.isFinite(weather.tempC)) {
+    return `${Math.round(weather.tempC)}°C · ${label}`
+  }
+  return `${label} (manual)`
+}
+
 export default function OutfitTab({ wardrobe, palette, onMarkOutfitWorn }) {
   const [formalityFilter, setFormalityFilter] = useState('any')
   const [seasonFilter, setSeasonFilter] = useState('any')
   const [results, setResults] = useState(null)
   const [markingScheme, setMarkingScheme] = useState('')
   const [markNotice, setMarkNotice] = useState('')
+  const [weather, setWeather] = useState(null)
+  const [weatherBusy, setWeatherBusy] = useState(false)
+  const [weatherHint, setWeatherHint] = useState('')
 
   useEffect(() => {
     setResults(null)
     setMarkNotice('')
-  }, [palette, formalityFilter, seasonFilter])
+  }, [palette, formalityFilter, seasonFilter, weather])
+
+  async function handleUseLocation() {
+    setWeatherBusy(true)
+    setWeatherHint('')
+    const next = await resolveWeatherFromLocation()
+    setWeatherBusy(false)
+    if (!next) {
+      setWeatherHint('Location or weather unavailable — pick Cold, Mild, or Hot.')
+      return
+    }
+    setWeather(next)
+    setWeatherHint('')
+  }
+
+  function handleManualBand(band) {
+    setWeather(weatherFromManualBand(band))
+    setWeatherHint('')
+  }
 
   function handleGenerate(event) {
     event.preventDefault()
@@ -36,6 +73,7 @@ export default function OutfitTab({ wardrobe, palette, onMarkOutfitWorn }) {
       palette,
       formalityFilter,
       seasonFilter,
+      weather?.seasons || null,
     )
     setResults(outfits)
   }
@@ -84,10 +122,44 @@ export default function OutfitTab({ wardrobe, palette, onMarkOutfitWorn }) {
       <p className="lede">
         Builds combinations of top + bottom + shoes, with optional outerwear and
         up to two accessories. Shows one best-scoring look per detected color
-        scheme (neutral-only, monochromatic, analogous, complementary). Every
-        piece must match the formality filter and be tagged for the selected
-        season. Recently worn pieces score lower but still appear.
+        scheme. Weather (location or Cold / Mild / Hot) softly boosts pieces
+        tagged for that temperature band; it does not hide other items.
       </p>
+
+      <div className="weather-bar">
+        <div className="weather-actions">
+          <button
+            type="button"
+            className="secondary"
+            disabled={weatherBusy}
+            onClick={handleUseLocation}
+          >
+            {weatherBusy ? 'Checking weather…' : 'Use my location'}
+          </button>
+          {TEMP_BAND_KEYS.map((band) => (
+            <button
+              key={band}
+              type="button"
+              className={weather?.band === band && weather?.source === 'manual' ? 'tab active' : 'secondary'}
+              onClick={() => handleManualBand(band)}
+            >
+              {TEMP_BANDS[band].label}
+            </button>
+          ))}
+        </div>
+        {weather ? (
+          <p className="hint">
+            Today: {weatherSummary(weather)} · boosting{' '}
+            {weather.seasons.join(', ')} tags (+{WEATHER_ITEM_BONUS} per matching piece)
+          </p>
+        ) : (
+          <p className="hint">
+            Optional: use location (Open-Meteo) or pick a temperature band.
+            Cached ~30 minutes per session.
+          </p>
+        )}
+        {weatherHint ? <p className="hint">{weatherHint}</p> : null}
+      </div>
 
       <form className="toolbar" onSubmit={handleGenerate}>
         <label className="field inline">
@@ -141,6 +213,9 @@ export default function OutfitTab({ wardrobe, palette, onMarkOutfitWorn }) {
                   <span className="badge">{outfit.formality}</span>
                   {seasonFilter !== 'any' ? (
                     <span className="badge">{seasonFilter}</span>
+                  ) : null}
+                  {weather?.band ? (
+                    <span className="badge">{TEMP_BANDS[weather.band].label}</span>
                   ) : null}
                   <span className="badge">score {outfit.score.toFixed(1)}</span>
                 </div>

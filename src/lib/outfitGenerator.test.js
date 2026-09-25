@@ -6,6 +6,7 @@ import {
   distinctNonNeutralHexes,
 } from './colorUtils.js'
 import { generateOutfits, localDateISO, MAX_COMBINATIONS, rawCombinationCount, recencyPenalty } from './outfitGenerator.js'
+import { bandFromTempC } from './weather.js'
 
 function item(partial) {
   return {
@@ -123,5 +124,48 @@ describe('generateOutfits', () => {
     const wornScore = generateOutfits(wornToday, palette)[0].score
     expect(wornScore).toBe(freshScore - 15)
     expect(generateOutfits(wornToday, palette).length).toBeGreaterThan(0)
+  })
+
+  it('applies a soft weather bonus without excluding off-band items', () => {
+    expect(bandFromTempC(5)).toBe('cold')
+    expect(bandFromTempC(15)).toBe('mild')
+    expect(bandFromTempC(25)).toBe('hot')
+
+    const wardrobe = [
+      item({
+        id: 'top-winter',
+        hex: '#808080',
+        category: 'top',
+        isNeutral: true,
+        seasons: ['winter'],
+      }),
+      item({
+        id: 'bottom-1',
+        hex: '#808080',
+        category: 'bottom',
+        isNeutral: true,
+        seasons: ['winter', 'spring', 'summer', 'fall'],
+      }),
+      item({
+        id: 'shoes-1',
+        hex: '#808080',
+        category: 'shoes',
+        isNeutral: true,
+        seasons: ['winter', 'spring', 'summer', 'fall'],
+      }),
+      item({
+        id: 'top-summer',
+        hex: '#808080',
+        category: 'top',
+        isNeutral: true,
+        seasons: ['summer'],
+        label: 'summer top',
+      }),
+    ]
+    const without = generateOutfits(wardrobe, palette)
+    const withCold = generateOutfits(wardrobe, palette, 'any', 'any', ['winter'])
+    expect(without.length).toBeGreaterThan(0)
+    expect(withCold.length).toBeGreaterThan(0)
+    expect(withCold[0].score).toBeGreaterThan(without[0].score)
   })
 })

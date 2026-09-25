@@ -63,12 +63,17 @@ The UI shows the **single best-scoring outfit per scheme** (up to 4), in a fixed
 - −3 per high-saturation non-neutral if two or more are loud (HSL S > 0.6).
 - Fit extras below (top / bottom / outerwear only).
 - Soft **recency** penalty per item in the combo (top, bottom, shoes, outerwear, accessories): never worn → 0; worn within the last 2 local days → −5; within the last 5 days → −2; otherwise 0. Soft only — recently worn looks still appear, they just rank lower.
+- Soft **weather** bonus (+2 per item) when a temperature band is set and the item’s `seasons` tag overlaps that band. Bands: cold under 10°C → winter; 10–22°C mild → spring/fall; 22°C and up hot → summer. Optional on Generate: browser location via Open-Meteo (no API key, ~30 min session cache) or manual Cold / Mild / Hot. Failures skip the bonus; generation still runs.
 
 ### Mark as worn
 
 Each generated outfit card has **Mark as worn**. That sets `last_worn` to today’s **local** calendar date (`YYYY-MM-DD`) on every piece in the look (one Supabase update for those ids). Only the latest wear date is stored — not a full history. Marking the same outfit twice in one day is fine (same date rewritten). On **My Wardrobe**, each item shows last worn and **Clear worn date** if you marked by mistake.
 
 Requires the column migration once: paste `supabase/migration_last_worn.sql` in the SQL Editor.
+
+### Weather-aware “what to wear today”
+
+On **Generate Outfit**, **Use my location** asks for geolocation and reads current temperature from [Open-Meteo](https://open-meteo.com/) in the browser (public data, no key, no Edge Function). If permission is denied or the request fails, use **Cold / Mild / Hot**. Matching is a soft score boost against existing season tags — not a hard filter — so a thin seasonal wardrobe still returns looks.
 
 ### Fit scoring (top, bottom, outerwear)
 
@@ -121,6 +126,7 @@ Phone / laptop browser
 GitHub Pages  (static React app — no Node server)
         │
         ├─ outfitGenerator.js     runs in the browser
+        ├─ weather.js             Open-Meteo + temp bands (client)
         ├─ imageUtils.js          resize photo / report screenshot
         ├─ colorUtils.js          extract swatches, hex, isNeutral, snap to palette
         │
@@ -155,7 +161,7 @@ GitHub Pages needs the same two values as repository **Actions secrets** named `
 
 ## Descoped for later
 
-- Weather and occasion-based filtering (season is already a wardrobe tag + generate filter)
+- Occasion-based filtering (date night, gym, etc.) beyond formality + season + weather band
 - Image cropping/editing on upload
 - Multi-user product / accounts beyond a single login
 - Storing multiple hexes per garment so a print can consume two color slots
