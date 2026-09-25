@@ -388,6 +388,20 @@ export default function WardrobeTab({
                       value={item.seasons || []}
                       onChange={(next) => onUpdateItem(item.id, { seasons: next })}
                     />
+                    {item.lastWorn ? (
+                      <p className="hint">
+                        Last worn {item.lastWorn}.{' '}
+                        <button
+                          type="button"
+                          className="linkish"
+                          onClick={() => onUpdateItem(item.id, { lastWorn: null })}
+                        >
+                          Clear worn date
+                        </button>
+                      </p>
+                    ) : (
+                      <p className="hint">Never marked as worn.</p>
+                    )}
                     <button
                       type="button"
                       className="remove-btn"

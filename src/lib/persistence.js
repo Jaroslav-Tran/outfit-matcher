@@ -97,6 +97,7 @@ function rowToItem(row, imageUrl) {
     isNeutral: row.is_neutral,
     label: row.label || undefined,
     imagePath: row.image_path,
+    lastWorn: row.last_worn || null,
     imageUrl,
   }
 }
@@ -104,7 +105,7 @@ function rowToItem(row, imageUrl) {
 export async function loadWardrobe(userId) {
   const { data, error } = await supabase
     .from('wardrobe_items')
-    .select('id, hex, category, formality, fit, seasons, is_neutral, label, image_path')
+    .select('id, hex, category, formality, fit, seasons, is_neutral, label, image_path, last_worn')
     .eq('user_id', userId)
     .order('created_at', { ascending: true })
   throwIfError(error)
@@ -165,12 +166,23 @@ export async function updateWardrobeItemRow(userId, id, patch) {
   if ('label' in patch) row.label = patch.label ?? null
   if ('category' in patch) row.category = patch.category
   if ('formality' in patch) row.formality = patch.formality
+  if ('lastWorn' in patch) row.last_worn = patch.lastWorn
   if (!Object.keys(row).length) return
   const { error } = await supabase
     .from('wardrobe_items')
     .update(row)
     .eq('user_id', userId)
     .eq('id', id)
+  throwIfError(error)
+}
+
+export async function markItemsWorn(userId, itemIds, wornDate) {
+  if (!itemIds?.length) return
+  const { error } = await supabase
+    .from('wardrobe_items')
+    .update({ last_worn: wornDate })
+    .eq('user_id', userId)
+    .in('id', itemIds)
   throwIfError(error)
 }
 

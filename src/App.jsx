@@ -15,11 +15,13 @@ import {
   loadPalette,
   loadPaletteReference,
   loadWardrobe,
+  markItemsWorn,
   replaceAllData,
   savePaletteReference,
   updateWardrobeItemRow,
 } from './lib/persistence.js'
 import { downloadJson, exportFilename, fetchClosetExport } from './lib/exportCloset.js'
+import { localDateISO } from './lib/outfitGenerator.js'
 import './App.css'
 
 const TABS = [
@@ -182,6 +184,24 @@ function App() {
     }
   }
 
+  async function markOutfitWorn(itemIds) {
+    const ids = [...new Set((itemIds || []).filter(Boolean))]
+    if (!ids.length) return
+    const today = localDateISO()
+    const previous = wardrobe
+    setWardrobe((current) =>
+      current.map((item) => (ids.includes(item.id) ? { ...item, lastWorn: today } : item)),
+    )
+    setPersistError('')
+    try {
+      await markItemsWorn(user.id, ids, today)
+    } catch (error) {
+      setWardrobe(previous)
+      setPersistError(error.message || 'Could not mark those items as worn.')
+      throw error
+    }
+  }
+
   async function loadSampleData() {
     wardrobeRef.current.forEach((item) => revokeIfBlobUrl(item.imageUrl))
     const sample = createSampleData()
@@ -306,7 +326,11 @@ function App() {
         />
       </div>
       <div hidden={tab !== 'outfit'}>
-        <OutfitTab wardrobe={wardrobe} palette={palette} />
+        <OutfitTab
+          wardrobe={wardrobe}
+          palette={palette}
+          onMarkOutfitWorn={markOutfitWorn}
+        />
       </div>
     </div>
   )

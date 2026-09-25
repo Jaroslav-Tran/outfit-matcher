@@ -62,6 +62,13 @@ The UI shows the **single best-scoring outfit per scheme** (up to 4), in a fixed
 - +2 for exactly one accessory.
 - −3 per high-saturation non-neutral if two or more are loud (HSL S > 0.6).
 - Fit extras below (top / bottom / outerwear only).
+- Soft **recency** penalty per item in the combo (top, bottom, shoes, outerwear, accessories): never worn → 0; worn within the last 2 local days → −5; within the last 5 days → −2; otherwise 0. Soft only — recently worn looks still appear, they just rank lower.
+
+### Mark as worn
+
+Each generated outfit card has **Mark as worn**. That sets `last_worn` to today’s **local** calendar date (`YYYY-MM-DD`) on every piece in the look (one Supabase update for those ids). Only the latest wear date is stored — not a full history. Marking the same outfit twice in one day is fine (same date rewritten). On **My Wardrobe**, each item shows last worn and **Clear worn date** if you marked by mistake.
+
+Requires the column migration once: paste `supabase/migration_last_worn.sql` in the SQL Editor.
 
 ### Fit scoring (top, bottom, outerwear)
 
@@ -129,7 +136,7 @@ GitHub Pages  (static React app — no Node server)
 
 Do this in the [Supabase dashboard](https://supabase.com/dashboard) for project `pfzdquqmwcluswlkqnct`.
 
-1. **Run the schema** (new project) or **`supabase/hardening.sql`** (existing project). SQL Editor → New query → paste → Run.
+1. **Run the schema** (new project) or **`supabase/hardening.sql`** (existing project). SQL Editor → New query → paste → Run. For “Mark as worn,” also run **`supabase/migration_last_worn.sql`** once.
 2. **Auth: Email** enabled. Turn off **Confirm email**. Turn off **Allow new users to sign up** so only the existing account can sign in.
 3. **Add site URLs** under Authentication → URL Configuration:
    - `http://127.0.0.1:5173`
@@ -156,6 +163,7 @@ GitHub Pages needs the same two values as repository **Actions secrets** named `
 - Triadic or tetradic schemes (need 3+ non-neutral colors, which conflicts with the 2-non-neutral cap)
 - Explicit style-preference filter (v1 shows one best example per detected scheme instead)
 - Shoe-to-bottom pairing and shoe fit in the score (shoe fit is displayed only)
+- Full wear-history / analytics (`wear_events` table) — v1 stores only `last_worn` per item
 - Hemline, length, or garment-weight modeling (fit is the 3-tier silhouette only)
 - Self-hosted API (Express, Railway, etc.) — not required while Supabase is the backend
 

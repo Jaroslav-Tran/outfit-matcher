@@ -5,7 +5,7 @@ import {
   detectColorScheme,
   distinctNonNeutralHexes,
 } from './colorUtils.js'
-import { generateOutfits, MAX_COMBINATIONS, rawCombinationCount } from './outfitGenerator.js'
+import { generateOutfits, localDateISO, MAX_COMBINATIONS, rawCombinationCount, recencyPenalty } from './outfitGenerator.js'
 
 function item(partial) {
   return {
@@ -17,6 +17,7 @@ function item(partial) {
     isNeutral: partial.isNeutral ?? false,
     label: partial.label || partial.id,
     fit: partial.fit,
+    lastWorn: partial.lastWorn ?? null,
   }
 }
 
@@ -102,5 +103,25 @@ describe('generateOutfits', () => {
       }),
     ]
     expect(generateOutfits(wardrobe, palette, 'formal')).toEqual([])
+  })
+
+  it('applies soft recency penalties without excluding recently worn items', () => {
+    expect(recencyPenalty(null)).toBe(0)
+    expect(recencyPenalty('2099-01-01', '2099-01-01')).toBe(-5)
+    expect(recencyPenalty('2099-01-01', '2099-01-03')).toBe(-5)
+    expect(recencyPenalty('2099-01-01', '2099-01-04')).toBe(-2)
+    expect(recencyPenalty('2099-01-01', '2099-01-06')).toBe(-2)
+    expect(recencyPenalty('2099-01-01', '2099-01-07')).toBe(0)
+
+    const fresh = [
+      item({ id: 'top-1', hex: '#808080', category: 'top', isNeutral: true }),
+      item({ id: 'bottom-1', hex: '#808080', category: 'bottom', isNeutral: true }),
+      item({ id: 'shoes-1', hex: '#808080', category: 'shoes', isNeutral: true }),
+    ]
+    const wornToday = fresh.map((entry) => ({ ...entry, lastWorn: localDateISO() }))
+    const freshScore = generateOutfits(fresh, palette)[0].score
+    const wornScore = generateOutfits(wornToday, palette)[0].score
+    expect(wornScore).toBe(freshScore - 15)
+    expect(generateOutfits(wornToday, palette).length).toBeGreaterThan(0)
   })
 })

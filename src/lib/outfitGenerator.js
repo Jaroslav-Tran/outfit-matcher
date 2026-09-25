@@ -14,6 +14,48 @@ export const MAX_COMBINATIONS = 50000
 
 const REQUIRED_CATEGORIES = ['top', 'bottom', 'shoes']
 
+/** Local calendar date as YYYY-MM-DD (device timezone). */
+export function localDateISO(date = new Date()) {
+  const y = date.getFullYear()
+  const m = String(date.getMonth() + 1).padStart(2, '0')
+  const d = String(date.getDate()).padStart(2, '0')
+  return `${y}-${m}-${d}`
+}
+
+function parseLocalDate(iso) {
+  if (!iso || typeof iso !== 'string') return null
+  const [y, m, d] = iso.split('-').map(Number)
+  if (!y || !m || !d) return null
+  return new Date(y, m - 1, d)
+}
+
+/** Whole days between lastWorn and today (local). null if never worn. */
+export function daysSinceLastWorn(lastWorn, today = localDateISO()) {
+  const worn = parseLocalDate(lastWorn)
+  const now = parseLocalDate(today)
+  if (!worn || !now) return null
+  return Math.round((now.getTime() - worn.getTime()) / (24 * 60 * 60 * 1000))
+}
+
+/**
+ * Soft recency penalty for one item.
+ * null / never → 0; within 2 days → -5; within 5 days → -2; else 0.
+ */
+export function recencyPenalty(lastWorn, today = localDateISO()) {
+  const days = daysSinceLastWorn(lastWorn, today)
+  if (days == null || days < 0) return 0
+  if (days <= 2) return -5
+  if (days <= 5) return -2
+  return 0
+}
+
+export function comboRecencyPenalty(items, today = localDateISO()) {
+  return (items || []).reduce(
+    (sum, item) => sum + recencyPenalty(item.lastWorn, today),
+    0,
+  )
+}
+
 function byCategory(wardrobe, category) {
   return wardrobe.filter((item) => item.category === category)
 }
@@ -247,6 +289,7 @@ function scoreCombo(combo) {
 
   const fit = analyzeFit(combo)
   score += fit.extraScore
+  score += comboRecencyPenalty(combo.items)
   return { score, fit }
 }
 

@@ -20,8 +20,12 @@ create table if not exists public.wardrobe_items (
   is_neutral boolean not null default false,
   label text,
   image_path text not null,
+  last_worn date,
   created_at timestamptz not null default now()
 );
+
+alter table public.wardrobe_items
+  add column if not exists last_worn date;
 
 create index if not exists palette_colors_user_id_idx on public.palette_colors (user_id);
 create index if not exists wardrobe_items_user_id_idx on public.wardrobe_items (user_id);

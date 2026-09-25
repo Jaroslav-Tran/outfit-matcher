@@ -16,7 +16,7 @@ export async function fetchClosetExport(userId) {
 
   const { data: wardrobe, error: wardrobeError } = await supabase
     .from('wardrobe_items')
-    .select('id, hex, category, formality, fit, seasons, is_neutral, label, image_path, created_at')
+    .select('id, hex, category, formality, fit, seasons, is_neutral, label, image_path, last_worn, created_at')
     .eq('user_id', userId)
     .order('created_at', { ascending: true })
   if (wardrobeError) throw wardrobeError
