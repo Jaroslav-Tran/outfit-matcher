@@ -1,5 +1,50 @@
 # Fix log
 
+## Batch 2 — Core-logic correctness (2026-10-09)
+
+Stopped for owner approval before Batch 3.
+
+### Findings
+
+| Finding | Status | Files | Tests | Commit |
+|---------|--------|-------|-------|--------|
+| LOGIC-01 | FIXED | `outfitGenerator.js` (+tests) | Cream Whisper ~+17–20 Neutral; black ~0 | `10cf3eb` |
+| LOGIC-02 / 03 / 04 / 07 / DOC-01 | FIXED | `README.md`, `OutfitTab.jsx`, App/Auth captions | docs only | `4b9f59d` |
+| LOGIC-05 | FIXED | `colorUtils.js` | greys → mono; grey+hue; low-chroma neutral | `c0d4eb0` |
+| LOGIC-06 | FIXED | union-find in `colorUtils.js` | 6 orderings + greedy contrast | `c0d4eb0`, `fd090a5` |
+| LOOP-02 | FIXED | `outfitGenerator.js` | mid-layer tip once | `7f19685` |
+
+### LOGIC-01 palette dominance (seed closet, no weight retune)
+
+Valid sample-closet combos: **65**.
+
+| Metric | Min | Median | Max |
+|--------|----:|-------:|----:|
+| Palette points (sum) | 60 | 80 | 80 |
+| Σ \|style adjustments\| | 0 | 2 | 2 |
+
+- **100%** of combos have palette points ≥ abs style sum.
+- **100%** have palette points ≥ 4 (typical fit/layer penalty magnitude).
+- UI best looks: palette ~60–80 vs style 0–2.
+
+**Palette dominates.** Options for the owner (do not implement until chosen):
+
+1. **Average** palette points over items instead of sum (before/after: rankings compress; 3-piece neutrals no longer beat 5-piece stacks by default).
+2. **Per-item cap** (e.g. max 8 instead of 20) — softens exact palette matches.
+3. **Scale factor** (e.g. `0.25 × Σ`) — keeps sum shape, shrinks vs ±2…−5 style terms.
+
+Recommend measuring those three on 5 Generate runs after Batch 3 generator work, then pick one.
+
+### Checks after Batch 2
+
+```
+npm run test  → 11 files, 76 passed
+npm run lint  → unused CATEGORIES warning only
+npm run build → OK
+```
+
+---
+
 ## Batch 1 — Security and data loss (2026-10-09)
 
 Stopped for owner approval before Batch 2.

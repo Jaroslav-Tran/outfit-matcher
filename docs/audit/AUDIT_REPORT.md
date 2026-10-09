@@ -115,32 +115,32 @@ XSS sinks (dangerouslySetInnerHTML / innerHTML / document.write) → none in src
 
 | ID | Sev | Conf | Category | Location | Status |
 |----|-----|------|----------|----------|--------|
-| LOGIC-01 | High | CONFIRMED | Conflicting logic | `colorUtils.js` + `sampleData.js` | (Batch 2) |
+| LOGIC-01 | High | CONFIRMED | Conflicting logic | `colorUtils.js` + `sampleData.js` | FIXED `10cf3eb` (weights not retuned; see FIX_LOG) |
 | LOOP-01 | High | CONFIRMED | Runaway work | `outfitGenerator.js` | (Batch 3) |
 | DATA-01 | High | CONFIRMED | Data integrity | `persistence.js` delete path | FIXED `21fd48f` |
 | SEC-01 | High | CONFIRMED | Security | `suggest-garment/index.ts` | FIXED `0ab5a9e` (+ wired in `ee6e24e`) |
 | SEC-02 | Medium | CONFIRMED | Security (hygiene) | `cors.ts` + Edge Function | FIXED `e4791ba` (+ wired in `ee6e24e`); owner must set `ALLOWED_ORIGINS` |
-| LOGIC-02 | High | CONFIRMED | Contradiction | README vs `outfitGenerator.js` formality | (Batch 2) |
+| LOGIC-02 | High | CONFIRMED | Contradiction | README vs `outfitGenerator.js` formality | FIXED `4b9f59d` |
 | DATA-02 | Medium | CONFIRMED | Data integrity | sample append / WardrobeTab | FIXED `d990fb2` |
 | DATA-03 | Medium | LIKELY | Race / UX | `App.jsx` hydrating vs Generate | (Batch 3) |
 | DATA-04 | Medium | CONFIRMED | State | signed URLs 7d in memory only | (Batch 3) |
 | DATA-05 | Medium | LIKELY | Double-submit | WardrobeTab / sample button | FIXED `bca2007` |
-| LOGIC-03 | Medium | CONFIRMED | Contradiction | README combo formula omits mid-layer | (Batch 2) |
-| LOGIC-04 | Medium | CONFIRMED | Contradiction | README fit stack vs code includes mid-layer | (Batch 2) |
-| LOGIC-05 | Medium | CONFIRMED | Logic | achromatic non-neutral → unclassified drop | (Batch 2) |
-| LOGIC-06 | Medium | CONFIRMED | Logic | distinct-color count order-dependent | (Batch 2) |
-| LOGIC-07 | Medium | CONFIRMED | Docs | scheme boundary at 20° / complementary band | (Batch 2) |
+| LOGIC-03 | Medium | CONFIRMED | Contradiction | README combo formula omits mid-layer | FIXED `4b9f59d` |
+| LOGIC-04 | Medium | CONFIRMED | Contradiction | README fit stack vs code includes mid-layer | FIXED `4b9f59d` |
+| LOGIC-05 | Medium | CONFIRMED | Logic | achromatic non-neutral → unclassified drop | FIXED `c0d4eb0` |
+| LOGIC-06 | Medium | CONFIRMED | Logic | distinct-color count order-dependent | FIXED `c0d4eb0` / `fd090a5` |
+| LOGIC-07 | Medium | CONFIRMED | Docs | scheme boundary at 20° / complementary band | FIXED `4b9f59d` |
 | SEC-03 | Medium | CONFIRMED | Security | rate limit before Claude + error `detail` | FIXED `4099d36` / `f8810ad`; owner must run refund migration + redeploy |
 | SEC-04 | Medium | CONFIRMED | Security | no server enum/label sanitize | FIXED `ee6e24e` |
 | SEC-05 | Medium | CONFIRMED | Supply chain | `npm audit` source-map-js | (Batch 4) |
 | ERR-01 | Medium | CONFIRMED | Error handling | no React error boundary | (Batch 3) |
 | PRIV-01 | Medium | CONFIRMED | Privacy | Open-Meteo full coordinates | (Batch 4) |
-| LOOP-02 | Low | CONFIRMED | Logic/UX | `midLayerAppendix` duplicated (neutral-only) | (Batch 2) |
+| LOOP-02 | Low | CONFIRMED | Logic/UX | `midLayerAppendix` duplicated (neutral-only) | FIXED `7f19685` |
 | DATA-06 | Low | CONFIRMED | Integrity | dual-category items appear in two grid groups | (Batch 4) |
 | DATA-07 | Low | LIKELY | Orphans | storage remove error ignored on delete | FIXED `21fd48f` (with DATA-01) |
 | PLAT-01 | Low | CONFIRMED | Platform | `100vh`; inputs OK at 17px | (Batch 4) |
 | PLAT-02 | Low | CONFIRMED | Platform | Actions pinned by tag not SHA | (Batch 4) |
-| DOC-01 | Low | CONFIRMED | Docs | Descoped list still denies length/warmth | (Batch 2) |
+| DOC-01 | Low | CONFIRMED | Docs | Descoped list still denies length/warmth | FIXED `4b9f59d` |
 | PERF-01 | Low | CONFIRMED | Perf | single ~514 kB JS chunk | (Batch 4) |
 
 ---
