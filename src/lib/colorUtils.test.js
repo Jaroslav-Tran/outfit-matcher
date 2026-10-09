@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import chroma from 'chroma-js'
 import {
   countDistinctNonNeutralColors,
   dedupePaletteColors,
@@ -67,14 +68,14 @@ describe('LOGIC-05 achromatic colors', () => {
 })
 
 describe('LOGIC-06 distinct non-neutral count', () => {
-  it('returns the same count for a non-transitive triple in all orderings', () => {
-    // A≈B and B≈C (ΔE < 12) but A≉C (ΔE ≥ 12) — union-find → 1 component.
-    const A = '#ff0000'
-    const B = '#c70505'
-    const C = '#8b0404'
-    const items = (hexes) =>
-      hexes.map((hex, i) => ({ id: String(i), hex, isNeutral: false }))
+  // A≈B and B≈C (ΔE < 12) but A≉C (ΔE ≥ 12) — union-find → 1 component.
+  const A = '#ff0000'
+  const B = '#c70505'
+  const C = '#8b0404'
+  const items = (hexes) =>
+    hexes.map((hex, i) => ({ id: String(i), hex, isNeutral: false }))
 
+  it('returns the same count for a non-transitive triple in all orderings', () => {
     const orders = [
       [A, B, C],
       [A, C, B],
@@ -86,5 +87,19 @@ describe('LOGIC-06 distinct non-neutral count', () => {
     const counts = orders.map((order) => countDistinctNonNeutralColors(items(order)))
     expect(new Set(counts).size).toBe(1)
     expect(counts[0]).toBe(1)
+  })
+
+  it('differs from greedy first-seen counting on A,C,B order', () => {
+    // Greedy on [A,C,B]: A then C (far) → 2 reps; B merges into A → still 2.
+    // Union-find: A—B—C → 1.
+    function greedyCount(list) {
+      const reps = []
+      for (const hex of list) {
+        if (!reps.some((rep) => chroma.deltaE(rep, hex) < 12)) reps.push(hex)
+      }
+      return reps.length
+    }
+    expect(greedyCount([A, C, B])).toBe(2)
+    expect(countDistinctNonNeutralColors(items([A, C, B]))).toBe(1)
   })
 })
