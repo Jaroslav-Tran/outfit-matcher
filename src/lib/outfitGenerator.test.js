@@ -287,6 +287,41 @@ describe('generateOutfits', () => {
   })
 })
 
+describe('LOOP-02 mid-layer explanation', () => {
+  it('mentions the mid-layer cuff tip only once in a neutral-only look', () => {
+    const wardrobe = [
+      item({ id: 'top-1', hex: '#808080', category: 'top', isNeutral: true, label: 'tee' }),
+      item({
+        id: 'bottom-1',
+        hex: '#808080',
+        category: 'bottom',
+        isNeutral: true,
+        label: 'pants',
+      }),
+      item({
+        id: 'shoes-1',
+        hex: '#808080',
+        category: 'shoes',
+        isNeutral: true,
+        label: 'sneakers',
+      }),
+      item({
+        id: 'mid-1',
+        hex: '#808080',
+        category: 'mid-layer',
+        isNeutral: true,
+        label: 'cardigan',
+      }),
+    ]
+    const outfits = generateOutfits(wardrobe, [])
+    const neutral = outfits.find((o) => o.colorScheme === 'neutral-only')
+    expect(neutral).toBeTruthy()
+    const needle = 'show slightly at the cuff or collar'
+    const matches = neutral.explanation.split(needle).length - 1
+    expect(matches).toBe(1)
+  })
+})
+
 describe('LOGIC-01 palette score includes neutrals', () => {
   const analysisPalette = DEFAULT_PALETTE.map((color, index) => ({
     ...color,

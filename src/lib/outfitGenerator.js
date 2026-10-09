@@ -386,8 +386,7 @@ function buildExplanation(combo, colorScheme, fit) {
     paletteAppendix(combo.items) + fitAppendix(fit) + midLayerAppendix(combo)
 
   if (colorScheme === 'neutral-only') {
-    // LOOP-02: still duplicates midLayer; fixed in that finding's commit.
-    return `All-neutral look — ${listNames(combo.items)} rely on tone and texture rather than color contrast.${midLayerAppendix(combo)}${paletteAppendix(combo.items)}${fitAppendix(fit)}`
+    return `All-neutral look — ${listNames(combo.items)} rely on tone and texture rather than color contrast.${appendix}`
   }
 
   if (colorScheme === 'monochromatic') {
