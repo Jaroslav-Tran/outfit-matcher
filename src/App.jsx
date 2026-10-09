@@ -3,7 +3,12 @@ import AuthScreen from './components/AuthScreen.jsx'
 import PaletteTab from './components/PaletteTab.jsx'
 import WardrobeTab from './components/WardrobeTab.jsx'
 import OutfitTab from './components/OutfitTab.jsx'
+import SegmentedControl from './components/SegmentedControl.jsx'
+import ThemeToggle from './components/ThemeToggle.jsx'
+import { useTheme } from './hooks/useTheme.js'
 import { createSampleData } from './lib/sampleData.js'
+import { canOfferSampleData, filterNewSampleWardrobe } from './lib/sampleAppend.js'
+import { release, tryAcquire } from './lib/submitLock.js'
 import { revokeIfBlobUrl } from './lib/imageUtils.js'
 import { supabase, supabaseConfigured } from './lib/supabase.js'
 import {
@@ -16,18 +21,19 @@ import {
   loadPaletteReference,
   loadWardrobe,
   markItemsWorn,
-  replaceAllData,
+  appendSampleData,
   savePaletteReference,
   updateWardrobeItemRow,
 } from './lib/persistence.js'
 import { downloadJson, exportFilename, fetchClosetExport } from './lib/exportCloset.js'
 import { localDateISO } from './lib/outfitGenerator.js'
+import { dedupePaletteColors, normalizePaletteHex, paletteHasHex } from './lib/colorUtils.js'
 import './App.css'
 
-const TABS = [
-  { id: 'palette', label: 'My Palette' },
-  { id: 'wardrobe', label: 'My Wardrobe' },
-  { id: 'outfit', label: 'Generate Outfit' },
+const TAB_OPTIONS = [
+  { value: 'palette', label: 'My Palette' },
+  { value: 'wardrobe', label: 'My Wardrobe' },
+  { value: 'outfit', label: 'Generate' },
 ]
 
 function App() {
@@ -40,7 +46,12 @@ function App() {
   const [wardrobe, setWardrobe] = useState([])
   const [persistError, setPersistError] = useState('')
   const [exporting, setExporting] = useState(false)
+  const [menuOpen, setMenuOpen] = useState(false)
+  const { preference: themePreference, cyclePreference } = useTheme()
+  const menuRef = useRef(null)
   const wardrobeRef = useRef(wardrobe)
+  const sampleLockRef = useRef(false)
+  const markWornLockRef = useRef(false)
   wardrobeRef.current = wardrobe
 
   useEffect(() => {
@@ -48,6 +59,24 @@ function App() {
       wardrobeRef.current.forEach((item) => revokeIfBlobUrl(item.imageUrl))
     }
   }, [])
+
+  useEffect(() => {
+    if (!menuOpen) return undefined
+    function handlePointer(event) {
+      if (menuRef.current && !menuRef.current.contains(event.target)) {
+        setMenuOpen(false)
+      }
+    }
+    function handleKey(event) {
+      if (event.key === 'Escape') setMenuOpen(false)
+    }
+    document.addEventListener('mousedown', handlePointer)
+    document.addEventListener('keydown', handleKey)
+    return () => {
+      document.removeEventListener('mousedown', handlePointer)
+      document.removeEventListener('keydown', handleKey)
+    }
+  }, [menuOpen])
 
   useEffect(() => {
     if (!supabase) return undefined
@@ -85,7 +114,7 @@ function App() {
       .then(([nextPalette, nextWardrobe, nextReference]) => {
         if (cancelled) return
         wardrobeRef.current.forEach((item) => revokeIfBlobUrl(item.imageUrl))
-        setPalette(nextPalette)
+        setPalette(dedupePaletteColors(nextPalette))
         setWardrobe(nextWardrobe)
         setPaletteReferenceUrl(nextReference)
       })
@@ -107,24 +136,63 @@ function App() {
   }, [user])
 
   async function addPaletteColor(color) {
-    setPalette((current) => [...current, color])
+    const hex = normalizePaletteHex(color.hex)
+    if (!hex) {
+      setPersistError('Enter a valid hex color.')
+      return
+    }
+
+    let added = null
     setPersistError('')
+    setPalette((current) => {
+      if (paletteHasHex(hex, current)) {
+        return current
+      }
+      added = { ...color, hex }
+      return [...current, added]
+    })
+    if (!added) {
+      setPersistError('That color is already in your palette.')
+      return
+    }
+
     try {
-      await insertPaletteColor(user.id, color)
+      await insertPaletteColor(user.id, added)
     } catch (error) {
-      setPalette((current) => current.filter((entry) => entry.id !== color.id))
+      setPalette((current) => current.filter((entry) => entry.id !== added.id))
       setPersistError(error.message || 'Could not save that color.')
     }
   }
 
   async function addPaletteColors(colors) {
     if (!colors?.length) return
-    setPalette((current) => [...current, ...colors])
+
+    let unique = []
     setPersistError('')
+    setPalette((current) => {
+      const seen = new Set(
+        current.map((entry) => normalizePaletteHex(entry.hex)).filter(Boolean),
+      )
+      unique = []
+      for (const color of colors) {
+        const hex = normalizePaletteHex(color.hex)
+        if (!hex || seen.has(hex)) continue
+        seen.add(hex)
+        unique.push({ ...color, hex })
+      }
+      if (!unique.length) return current
+      return [...current, ...unique]
+    })
+
+    if (!unique.length) {
+      setPersistError('Those colors are already in your palette.')
+      return
+    }
+
     try {
-      await insertPaletteColors(user.id, colors)
+      await insertPaletteColors(user.id, unique)
     } catch (error) {
-      const ids = new Set(colors.map((color) => color.id))
+      const ids = new Set(unique.map((color) => color.id))
       setPalette((current) => current.filter((entry) => !ids.has(entry.id)))
       setPersistError(error.message || 'Could not save those colors.')
     }
@@ -185,8 +253,12 @@ function App() {
   }
 
   async function markOutfitWorn(itemIds) {
+    if (!tryAcquire(markWornLockRef)) return
     const ids = [...new Set((itemIds || []).filter(Boolean))]
-    if (!ids.length) return
+    if (!ids.length) {
+      release(markWornLockRef)
+      return
+    }
     const today = localDateISO()
     const previous = wardrobe
     setWardrobe((current) =>
@@ -199,26 +271,45 @@ function App() {
       setWardrobe(previous)
       setPersistError(error.message || 'Could not mark those items as worn.')
       throw error
+    } finally {
+      release(markWornLockRef)
     }
   }
 
   async function loadSampleData() {
-    wardrobeRef.current.forEach((item) => revokeIfBlobUrl(item.imageUrl))
-    const sample = createSampleData()
-    setPersistError('')
+    if (!tryAcquire(sampleLockRef)) return
     try {
-      const saved = await replaceAllData(user.id, sample.palette, sample.wardrobe)
-      setPalette(sample.palette)
-      setWardrobe(saved)
+      if (!canOfferSampleData(wardrobe, import.meta.env.DEV)) {
+        setPersistError('Sample data is only available when your wardrobe is empty.')
+        return
+      }
+      const sample = createSampleData()
+      const wardrobeToAdd = filterNewSampleWardrobe(wardrobe, sample.wardrobe)
+      const paletteNew = (sample.palette || []).filter((color) => {
+        const hex = normalizePaletteHex(color.hex)
+        return hex && !paletteHasHex(hex, palette)
+      }).length
+      const totalNew = wardrobeToAdd.length + paletteNew
+      const confirmed = window.confirm(
+        `Add sample data? This will add up to ${wardrobeToAdd.length} wardrobe item(s) and ${paletteNew} palette color(s) (${totalNew} new row(s) total). Existing items are kept.`,
+      )
+      if (!confirmed) return
+      setPersistError('')
+      const result = await appendSampleData(user.id, palette, wardrobe, sample)
+      setPalette(result.palette)
+      setWardrobe(result.wardrobe)
       setTab('wardrobe')
     } catch (error) {
       setPersistError(error.message || 'Could not save sample data.')
+    } finally {
+      release(sampleLockRef)
     }
   }
 
   async function exportCloset() {
     setPersistError('')
     setExporting(true)
+    setMenuOpen(false)
     try {
       const payload = await fetchClosetExport(user.id)
       downloadJson(exportFilename(new Date(payload.exported_at)), payload)
@@ -230,6 +321,7 @@ function App() {
   }
 
   async function signOut() {
+    setMenuOpen(false)
     wardrobeRef.current.forEach((item) => revokeIfBlobUrl(item.imageUrl))
     setPalette([])
     setPaletteReferenceUrl('')
@@ -241,9 +333,12 @@ function App() {
     return (
       <div className="app">
         <header className="app-header">
-          <div>
-            <p className="eyebrow">Supabase not configured</p>
-            <h1>Outfit Matcher</h1>
+          <div className="app-header-top">
+            <div className="app-header-copy">
+              <h1>Outfit Matcher</h1>
+              <p className="sync-caption">Add your Supabase keys to get started.</p>
+            </div>
+            <ThemeToggle preference={themePreference} onCycle={cyclePreference} />
           </div>
         </header>
         <section className="panel">
@@ -265,42 +360,62 @@ function App() {
   }
 
   if (!user) {
-    return <AuthScreen onSignedIn={setUser} />
+    return (
+      <AuthScreen
+        onSignedIn={setUser}
+        themePreference={themePreference}
+        onCycleTheme={cyclePreference}
+      />
+    )
   }
 
   return (
     <div className="app">
       <header className="app-header">
-        <div>
-          <p className="eyebrow">Saved to your account · laptop and phone</p>
-          <h1>Outfit Matcher</h1>
-          <p className="account-bar">
-            <span className="muted">{user.email}</span>
-            <button type="button" className="secondary" disabled={exporting} onClick={exportCloset}>
-              {exporting ? 'Exporting…' : 'Export my closet'}
-            </button>
-            <button type="button" className="linkish" onClick={signOut}>
-              Sign out
-            </button>
-          </p>
-          <p className="hint">
-            Photos stay in Supabase Storage; export downloads your tags and colors
-            only.
-          </p>
+        <div className="app-header-top">
+          <div className="app-header-copy">
+            <h1>Outfit Matcher</h1>
+            <p className="sync-caption">Synced across your laptop and phone.</p>
+          </div>
+          <div className="header-actions">
+            <ThemeToggle preference={themePreference} onCycle={cyclePreference} />
+            <div className="account-menu" ref={menuRef}>
+              <button
+                type="button"
+                className="account-menu-trigger"
+                aria-expanded={menuOpen}
+                aria-haspopup="menu"
+                onClick={() => setMenuOpen((open) => !open)}
+              >
+                Account
+              </button>
+              {menuOpen ? (
+                <div className="account-menu-panel" role="menu">
+                  <div className="account-menu-email">{user.email}</div>
+                  <button type="button" role="menuitem" disabled={exporting} onClick={exportCloset}>
+                    {exporting ? 'Exporting…' : 'Export'}
+                  </button>
+                  <button type="button" role="menuitem" className="danger-text" onClick={signOut}>
+                    Sign out
+                  </button>
+                </div>
+              ) : null}
+            </div>
+          </div>
         </div>
-        <nav className="tabs" aria-label="Main">
-          {TABS.map((entry) => (
-            <button
-              key={entry.id}
-              type="button"
-              className={tab === entry.id ? 'tab active' : 'tab'}
-              onClick={() => setTab(entry.id)}
-            >
-              {entry.label}
-            </button>
-          ))}
-        </nav>
+        <SegmentedControl
+          className="nav-segmented"
+          ariaLabel="Main"
+          options={TAB_OPTIONS}
+          value={tab}
+          onChange={setTab}
+        />
       </header>
+
+      <p className="hint storage-hint">
+        Photos stay in Supabase Storage; export downloads your tags and colors
+        only.
+      </p>
 
       {persistError ? <p className="error banner">{persistError}</p> : null}
       {hydrating ? <p className="empty">Loading your wardrobe…</p> : null}
@@ -323,6 +438,7 @@ function App() {
           onRemoveItem={removeWardrobeItem}
           onUpdateItem={updateWardrobeItem}
           onLoadSample={loadSampleData}
+          sampleAllowed={canOfferSampleData(wardrobe, import.meta.env.DEV)}
         />
       </div>
       <div hidden={tab !== 'outfit'}>
