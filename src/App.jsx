@@ -375,7 +375,7 @@ function App() {
         <div className="app-header-top">
           <div className="app-header-copy">
             <h1>Outfit Matcher</h1>
-            <p className="sync-caption">Synced across your laptop and phone.</p>
+            <p className="sync-caption">Same account on laptop and phone.</p>
           </div>
           <div className="header-actions">
             <ThemeToggle preference={themePreference} onCycle={cyclePreference} />

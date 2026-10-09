@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import SegmentedControl from './SegmentedControl.jsx'
 import { generateOutfits, localDateISO } from '../lib/outfitGenerator.js'
 import { SCHEME_LABELS } from '../lib/colorUtils.js'
 import { FORMALITIES, SEASONS, fitLabel } from '../lib/constants.js'
@@ -10,14 +11,21 @@ import {
   weatherFromManualBand,
 } from '../lib/weather.js'
 
-const FORMALITY_FILTERS = ['any', ...FORMALITIES]
-const SEASON_FILTERS = ['any', ...SEASONS]
+const FORMALITY_OPTIONS = [
+  { value: 'any', label: 'any' },
+  ...FORMALITIES.map((value) => ({ value, label: value })),
+]
+const SEASON_OPTIONS = [
+  { value: 'any', label: 'any' },
+  ...SEASONS.map((value) => ({ value, label: value })),
+]
 
 function slotItems(outfit) {
   return [
     outfit.top,
     outfit.bottom,
     outfit.shoes,
+    outfit.midLayer,
     outfit.outerwear,
     ...outfit.accessories,
   ].filter(Boolean)
@@ -50,13 +58,13 @@ export default function OutfitTab({ wardrobe, palette, onMarkOutfitWorn }) {
   async function handleUseLocation() {
     setWeatherBusy(true)
     setWeatherHint('')
-    const next = await resolveWeatherFromLocation()
+    const result = await resolveWeatherFromLocation()
     setWeatherBusy(false)
-    if (!next) {
-      setWeatherHint('Location or weather unavailable — pick Cold, Mild, or Hot.')
+    if (!result.ok) {
+      setWeatherHint(result.message)
       return
     }
-    setWeather(next)
+    setWeather(result.weather)
     setWeatherHint('')
   }
 
@@ -96,6 +104,10 @@ export default function OutfitTab({ wardrobe, palette, onMarkOutfitWorn }) {
               : look.bottom,
           shoes:
             look.shoes && ids.includes(look.shoes.id) ? { ...look.shoes, lastWorn: iso } : look.shoes,
+          midLayer:
+            look.midLayer && ids.includes(look.midLayer.id)
+              ? { ...look.midLayer, lastWorn: iso }
+              : look.midLayer,
           outerwear:
             look.outerwear && ids.includes(look.outerwear.id)
               ? { ...look.outerwear, lastWorn: iso }
@@ -116,13 +128,16 @@ export default function OutfitTab({ wardrobe, palette, onMarkOutfitWorn }) {
     }
   }
 
+  const manualBand = weather?.source === 'manual' ? weather.band : null
+
   return (
     <section className="panel">
       <h2>Generate Outfit</h2>
       <p className="lede">
-        Builds combinations of top + bottom + shoes, with optional outerwear and
-        up to two accessories. Shows one best-scoring look per detected color
-        scheme. Weather (location or Cold / Mild / Hot) softly boosts pieces
+        Builds combinations of top + bottom + shoes, with optional mid-layer and
+        outerwear and up to two accessories. Shows one best-scoring look per detected color
+        scheme. The formality filter uses the top’s tier; outerwear may be one step more
+        formal than the top. Weather (location or Cold / Mild / Hot) softly boosts pieces
         tagged for that temperature band; it does not hide other items.
       </p>
 
@@ -140,7 +155,8 @@ export default function OutfitTab({ wardrobe, palette, onMarkOutfitWorn }) {
             <button
               key={band}
               type="button"
-              className={weather?.band === band && weather?.source === 'manual' ? 'tab active' : 'secondary'}
+              className={manualBand === band ? 'secondary is-selected' : 'secondary'}
+              aria-pressed={manualBand === band}
               onClick={() => handleManualBand(band)}
             >
               {TEMP_BANDS[band].label}
@@ -158,37 +174,33 @@ export default function OutfitTab({ wardrobe, palette, onMarkOutfitWorn }) {
             Cached ~30 minutes per session.
           </p>
         )}
-        {weatherHint ? <p className="hint">{weatherHint}</p> : null}
+        {weatherHint ? <p className="error">{weatherHint}</p> : null}
       </div>
 
-      <form className="toolbar" onSubmit={handleGenerate}>
-        <label className="field inline">
-          <span>Formality</span>
-          <select
+      <form className="stack form-card" onSubmit={handleGenerate}>
+        <div className="picker-block">
+          <span className="picker-label">Formality</span>
+          <SegmentedControl
+            size="sm"
+            ariaLabel="Formality filter"
+            options={FORMALITY_OPTIONS}
             value={formalityFilter}
-            onChange={(event) => setFormalityFilter(event.target.value)}
-          >
-            {FORMALITY_FILTERS.map((value) => (
-              <option key={value} value={value}>
-                {value}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="field inline">
-          <span>Season</span>
-          <select
+            onChange={setFormalityFilter}
+          />
+        </div>
+        <div className="picker-block">
+          <span className="picker-label">Season</span>
+          <SegmentedControl
+            size="sm"
+            ariaLabel="Season filter"
+            options={SEASON_OPTIONS}
             value={seasonFilter}
-            onChange={(event) => setSeasonFilter(event.target.value)}
-          >
-            {SEASON_FILTERS.map((value) => (
-              <option key={value} value={value}>
-                {value}
-              </option>
-            ))}
-          </select>
-        </label>
-        <button type="submit">Generate</button>
+            onChange={setSeasonFilter}
+          />
+        </div>
+        <button type="submit" className="primary">
+          Generate
+        </button>
       </form>
 
       {markNotice ? <p className="hint">{markNotice}</p> : null}
@@ -203,10 +215,7 @@ export default function OutfitTab({ wardrobe, palette, onMarkOutfitWorn }) {
       ) : (
         <ol className="outfit-list">
           {results.map((outfit) => (
-            <li
-              key={outfit.colorScheme}
-              className="outfit-card"
-            >
+            <li key={outfit.colorScheme} className="outfit-card">
               <header>
                 <h3>{SCHEME_LABELS[outfit.colorScheme] || outfit.colorScheme}</h3>
                 <div className="badges">
@@ -217,7 +226,7 @@ export default function OutfitTab({ wardrobe, palette, onMarkOutfitWorn }) {
                   {weather?.band ? (
                     <span className="badge">{TEMP_BANDS[weather.band].label}</span>
                   ) : null}
-                  <span className="badge">score {outfit.score.toFixed(1)}</span>
+                  <span className="badge tabular">score {outfit.score.toFixed(1)}</span>
                 </div>
               </header>
               <ul className="outfit-pieces">
@@ -226,7 +235,7 @@ export default function OutfitTab({ wardrobe, palette, onMarkOutfitWorn }) {
                     <img src={item.imageUrl} alt={item.label || item.category} />
                     <span className="swatch-chip small" style={{ background: item.hex }} />
                     <span>{item.label || item.category}</span>
-                    <span className="muted">{fitLabel(item.fit, item.category)}</span>
+                    <span className="muted">{fitLabel(item.fit, item)}</span>
                     {item.lastWorn ? (
                       <span className="muted">worn {item.lastWorn}</span>
                     ) : null}

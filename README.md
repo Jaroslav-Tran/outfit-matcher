@@ -23,6 +23,7 @@ Each piece is a photo plus tags. React state is the UI source of truth; Supabase
 - **Neutral.** Suggested when the hero hex is within ΔE 12 of a hardcoded neutral list (black, white, greys, navy, beige, tan, brown, olive, charcoal). The checkbox stays editable.
 - **Tags.** Category, formality, fit, seasons, and label can be filled by Claude vision (`suggest-garment` Edge Function) when it is deployed. Hex is never asked of Claude. Every field is editable before save.
 - **Fit labels.** `fitted` / `regular` / `relaxed`. Shoes display as sleek/low-profile, standard, chunky/platform. Missing fit defaults to `regular`.
+- **Bulk upload.** Separate from the single-item camera form. Pick up to **20** library photos (`multiple`, no `capture`). Each file becomes a pending card (queued → processing → ready → saved, or failed / excluded). Resize + local color run without a concurrency cap; Claude tag calls are limited to **2 at a time**. A mid-batch daily quota (429) stops further AI calls and leaves remaining cards ready for manual tags. Soft duplicate nudge (same category, ΔE under 8) vs saved wardrobe and earlier cards in the batch. Per-card Save plus **Save all remaining ready items**. Pending cards are session-only until saved.
 
 ### Multi-colored clothes
 
@@ -35,34 +36,34 @@ A shirt with navy stripes on white is **one wardrobe row with one hex**. The gen
 
 ### Outfit generation
 
-Combinations are **1 top + 1 bottom + 1 shoes**, optional outerwear, and **0–2 accessories**, capped at 50,000 enumerated combos (2-accessory subsets are dropped first if the raw count is too high).
+Combinations are **1 top + 1 bottom + 1 shoes**, optional **mid-layer**, optional outerwear, and **0–2 accessories**, capped at 50,000 enumerated combos (2-accessory subsets are dropped first if the raw count is too high).
 
 Survivors must:
 
-1. Share **one formality tier** on every piece, including accessories. The Generate tab can further restrict that tier.
+1. **Formality.** The outfit tier is the **top’s** formality. Bottom, shoes, mid-layer, and accessories must match that tier exactly. Outerwear may match it or be **exactly one step more formal** (casual → smart-casual, smart-casual → formal), never less formal and never two steps up. The Generate tab can further restrict the outfit tier (filter compares to the top).
 2. Pass the **season** filter when one is set (an item with no seasons is treated as all seasons).
-3. Have **at most two distinct non-neutral colors** (hexes within ΔE 12 count as the same color).
+3. Have **at most two distinct non-neutral colors** (hexes within ΔE 12 count as the same color). Items marked Neutral do not consume a color slot.
 4. Classify as Neutral-only, Monochromatic, Analogous, or Complementary. Other hue pairings are dropped.
 
-**Scheme rules** (circular hue distance of the distinct non-neutral hexes):
+**Scheme rules** (circular hue distance of the distinct non-neutral hexes; max circular distance is 180°):
 
 | Scheme | Rule |
 |---|---|
 | Neutral-only | No non-neutral pieces |
 | Monochromatic | One non-neutral, or two with hue distance ≤ 20° |
-| Analogous | Two non-neutrals, hue distance 20–60° |
-| Complementary | Two non-neutrals, hue distance 150–210° |
+| Analogous | Two non-neutrals, hue distance > 20° and ≤ 60° |
+| Complementary | Two non-neutrals, hue distance 150–180° (circular) |
 | Unclassified | Anything else — discarded |
 
 The UI shows the **single best-scoring outfit per scheme** (up to 4), in a fixed scheme order, not a global top-N by score.
 
 **Scoring**
 
-- Palette closeness: `Σ max(0, 20 − ΔE)` over non-neutral items.
+- Palette closeness: `Σ max(0, 20 − ΔE)` over **every** item with a hex (neutral or not). `isNeutral` only exempts the piece from the two-color budget.
 - +2 for exactly one accessory.
 - −3 per high-saturation non-neutral if two or more are loud (HSL S > 0.6).
-- Fit extras below (top / bottom / outerwear only).
-- Soft **recency** penalty per item in the combo (top, bottom, shoes, outerwear, accessories): never worn → 0; worn within the last 2 local days → −5; within the last 5 days → −2; otherwise 0. Soft only — recently worn looks still appear, they just rank lower.
+- Fit and layering extras below (top / mid-layer / outerwear / bottom as noted).
+- Soft **recency** penalty per item in the combo (top, bottom, shoes, mid-layer, outerwear, accessories): never worn → 0; worn within the last 2 local days → −5; within the last 5 days → −2; otherwise 0. Soft only — recently worn looks still appear, they just rank lower.
 - Soft **weather** bonus (+2 per item) when a temperature band is set and the item’s `seasons` tag overlaps that band. Bands: cold under 10°C → winter; 10–22°C mild → spring/fall; 22°C and up hot → summer. Optional on Generate: browser location via Open-Meteo (no API key, ~30 min session cache) or manual Cold / Mild / Hot. Failures skip the bonus; generation still runs.
 
 ### Mark as worn
@@ -75,14 +76,16 @@ Requires the column migration once: paste `supabase/migration_last_worn.sql` in 
 
 On **Generate Outfit**, **Use my location** asks for geolocation and reads current temperature from [Open-Meteo](https://open-meteo.com/) in the browser (public data, no key, no Edge Function). If permission is denied or the request fails, use **Cold / Mild / Hot**. Matching is a soft score boost against existing season tags — not a hard filter — so a thin seasonal wardrobe still returns looks.
 
-### Fit scoring (top, bottom, outerwear)
+### Fit and layering extras (top, bottom, mid-layer, outerwear)
 
-Shoe fit is **not** included here.
+Shoe fit is **not** included in volume/balance scoring (it is stored and shown only).
 
 - **Balance +3** if one of top/bottom is fitted and the other is relaxed.
-- **Volume stack −4** per extra relaxed piece beyond the first, among top, bottom, and outerwear.
+- **Volume stack −4** per extra relaxed piece beyond the first, among top, bottom, **mid-layer**, and outerwear.
 - **Layer inversion −4** if fitted outerwear is worn over a relaxed top.
-- Missing fit is `regular`. Explanations append a sentence when balance or stacked volume applied.
+- **Length hierarchy +2** when each outer layer in the top → mid-layer → outerwear stack is at least as long as the layer inside.
+- **Warmth grading −4** when an outer layer is lighter than the layer inside; **heavy bulk −4** when more than one stack piece is heavy.
+- Missing fit defaults to `regular`; missing warmth/length default to `medium` / `regular` in scoring. Explanations append a sentence when balance or stacked volume applied.
 
 ### Shoes: matching logic
 
@@ -105,7 +108,7 @@ If a shoe “matches,” it means: same formality, in-season, and the outfit sti
 
 ### Persistence and accounts
 
-`palette` and `wardrobe` live in `useState` in `App.jsx`. Tabs stay mounted. Signed-in writes go to Supabase (`palette_colors`, `wardrobe_items`, Storage). Row Level Security limits rows to `auth.uid()`. Sample data replaces the signed-in user’s rows when loaded.
+`palette` and `wardrobe` live in `useState` in `App.jsx`. Tabs stay mounted. Signed-in writes go to Supabase (`palette_colors`, `wardrobe_items`, Storage). Row Level Security limits rows to `auth.uid()`. **Add sample data** appends demo colors/items and never deletes your existing uploads; near-duplicate palette colors are skipped.
 
 **Export my closet** (signed-in header) downloads JSON `{ schema_version, exported_at, palette, wardrobe }` — tags, colors, and Storage paths only, not photo bytes.
 
@@ -170,8 +173,9 @@ GitHub Pages needs the same two values as repository **Actions secrets** named `
 - Explicit style-preference filter (v1 shows one best example per detected scheme instead)
 - Shoe-to-bottom pairing and shoe fit in the score (shoe fit is displayed only)
 - Full wear-history / analytics (`wear_events` table) — v1 stores only `last_worn` per item
-- Hemline, length, or garment-weight modeling (fit is the 3-tier silhouette only)
 - Self-hosted API (Express, Railway, etc.) — not required while Supabase is the backend
+
+Length (`cropped` / `regular` / `long`) and warmth (`light` / `medium` / `heavy`) are **implemented** for layering score (see Fit and layering extras above), not descoped.
 
 ## Run locally
 

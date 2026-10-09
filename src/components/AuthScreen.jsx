@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import ThemeToggle from './ThemeToggle.jsx'
 import { supabase } from '../lib/supabase.js'
 
 function authErrorMessage(error) {
@@ -14,7 +15,7 @@ function authErrorMessage(error) {
   return error?.message || 'Could not sign in.'
 }
 
-export default function AuthScreen({ onSignedIn }) {
+export default function AuthScreen({ onSignedIn, themePreference, onCycleTheme }) {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
@@ -41,9 +42,14 @@ export default function AuthScreen({ onSignedIn }) {
   return (
     <div className="app">
       <header className="app-header">
-        <div>
-          <p className="eyebrow">Supabase · laptop and phone</p>
-          <h1>Outfit Matcher</h1>
+        <div className="app-header-top">
+          <div className="app-header-copy">
+            <h1>Outfit Matcher</h1>
+            <p className="sync-caption">Same account on laptop and phone.</p>
+          </div>
+          {themePreference && onCycleTheme ? (
+            <ThemeToggle preference={themePreference} onCycle={onCycleTheme} />
+          ) : null}
         </div>
       </header>
       <section className="panel">
@@ -75,7 +81,7 @@ export default function AuthScreen({ onSignedIn }) {
             />
           </label>
           {error ? <p className="error">{error}</p> : null}
-          <button type="submit" disabled={busy}>
+          <button type="submit" className="primary" disabled={busy}>
             {busy ? 'Please wait…' : 'Sign in'}
           </button>
         </form>
