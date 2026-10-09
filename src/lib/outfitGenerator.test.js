@@ -5,19 +5,36 @@ import {
   detectColorScheme,
   distinctNonNeutralHexes,
 } from './colorUtils.js'
-import { generateOutfits, localDateISO, MAX_COMBINATIONS, rawCombinationCount, recencyPenalty } from './outfitGenerator.js'
+import { normalizeCategories } from './constants.js'
+import { annotateWardrobeWithPalette } from './colorUtils.js'
+import {
+  analyzeLayerStyle,
+  comboComfortPenalty,
+  comboHasDuplicateSlots,
+  generateOutfits,
+  localDateISO,
+  MAX_COMBINATIONS,
+  outerwearFormalityAllowed,
+  palettePointsForItem,
+  passesFormalityFilter,
+  rawCombinationCount,
+  recencyPenalty,
+} from './outfitGenerator.js'
+import { DEFAULT_PALETTE } from './sampleData.js'
 import { bandFromTempC } from './weather.js'
 
 function item(partial) {
   return {
     id: partial.id,
-    hex: partial.hex,
+    hex: partial.hex || '#808080',
     category: partial.category,
     formality: partial.formality || 'casual',
     seasons: partial.seasons || ['spring', 'summer', 'fall', 'winter'],
     isNeutral: partial.isNeutral ?? false,
     label: partial.label || partial.id,
     fit: partial.fit,
+    warmth: partial.warmth ?? null,
+    length: partial.length ?? null,
     lastWorn: partial.lastWorn ?? null,
   }
 }
@@ -167,5 +184,139 @@ describe('generateOutfits', () => {
     expect(without.length).toBeGreaterThan(0)
     expect(withCold.length).toBeGreaterThan(0)
     expect(withCold[0].score).toBeGreaterThan(without[0].score)
+  })
+
+  it('applies no warmth-grading penalty when warmth increases outward', () => {
+    const top = item({ id: 't', category: 'top', warmth: 'light', length: 'regular' })
+    const mid = item({ id: 'm', category: 'mid-layer', warmth: 'medium', length: 'regular' })
+    const outer = item({ id: 'o', category: 'outerwear', warmth: 'heavy', length: 'long' })
+    const combo = { top, midLayer: mid, outerwear: outer }
+    expect(analyzeLayerStyle(combo).warmthGradingPenalty).toBe(false)
+  })
+
+  it('applies warmth-grading penalty when an outer layer is lighter than the layer inside', () => {
+    const top = item({ id: 't', category: 'top', warmth: 'heavy', length: 'regular' })
+    const mid = item({ id: 'm', category: 'mid-layer', warmth: 'light', length: 'regular' })
+    const combo = { top, midLayer: mid, outerwear: null }
+    expect(analyzeLayerStyle(combo).warmthGradingPenalty).toBe(true)
+    expect(analyzeLayerStyle(combo).extraScore).toBeLessThan(0)
+  })
+
+  it('applies bulk-cap penalty when two layer-stack pieces are heavy', () => {
+    const top = item({ id: 't', category: 'top', warmth: 'heavy' })
+    const mid = item({ id: 'm', category: 'mid-layer', warmth: 'heavy' })
+    const combo = { top, midLayer: mid, outerwear: null }
+    expect(analyzeLayerStyle(combo).heavyBulkPenalty).toBe(true)
+  })
+
+  it('allows outerwear one formality tier above the top but not below or two above', () => {
+    expect(outerwearFormalityAllowed('casual', 'smart-casual')).toBe(true)
+    expect(outerwearFormalityAllowed('casual', 'formal')).toBe(false)
+    expect(outerwearFormalityAllowed('smart-casual', 'casual')).toBe(false)
+
+    const base = {
+      top: item({ id: 't', category: 'top', formality: 'casual' }),
+      bottom: item({ id: 'b', category: 'bottom', formality: 'casual' }),
+      shoes: item({ id: 's', category: 'shoes', formality: 'casual' }),
+      midLayer: null,
+      accessories: [],
+    }
+    expect(
+      passesFormalityFilter(
+        {
+          ...base,
+          outerwear: item({ id: 'o', category: 'outerwear', formality: 'smart-casual' }),
+        },
+        'any',
+      ),
+    ).toBe(true)
+    expect(
+      passesFormalityFilter(
+        {
+          ...base,
+          outerwear: item({ id: 'o2', category: 'outerwear', formality: 'formal' }),
+        },
+        'any',
+      ),
+    ).toBe(false)
+  })
+
+  it('penalizes a three-layer stack more than a one-layer stack in a hot band', () => {
+    const top = item({ id: 'top-1', category: 'top', warmth: 'light', isNeutral: true })
+    const mid = item({ id: 'mid-1', category: 'mid-layer', warmth: 'medium', isNeutral: true })
+    const outer = item({ id: 'outer-1', category: 'outerwear', warmth: 'heavy', isNeutral: true })
+    const oneLayer = { top, midLayer: null, outerwear: null }
+    const threeLayer = { top, midLayer: mid, outerwear: outer }
+    expect(comboComfortPenalty(threeLayer, 'hot')).toBeLessThan(
+      comboComfortPenalty(oneLayer, 'hot'),
+    )
+  })
+
+  it('treats null warmth and length as medium and regular without throwing', () => {
+    const top = item({ id: 't', category: 'top', warmth: null, length: null })
+    const mid = item({ id: 'm', category: 'mid-layer', warmth: null, length: null })
+    expect(() => analyzeLayerStyle({ top, midLayer: mid, outerwear: null })).not.toThrow()
+  })
+
+  it('includes mid-layer items in generation when tagged mid-layer only', () => {
+    const wardrobe = [
+      item({ id: 'top-1', category: 'top', isNeutral: true }),
+      item({ id: 'bottom-1', category: 'bottom', isNeutral: true }),
+      item({ id: 'shoes-1', category: 'shoes', isNeutral: true }),
+      item({ id: 'mid-1', category: ['mid-layer'], isNeutral: true, label: 'vest' }),
+    ]
+    const outfits = generateOutfits(wardrobe, palette)
+    expect(outfits.some((look) => look.midLayer?.id === 'mid-1')).toBe(true)
+  })
+
+  it('discards combinations where the same item would fill two slots', () => {
+    const dual = item({ id: 'dual', category: ['top', 'mid-layer'], isNeutral: true })
+    const combo = {
+      top: dual,
+      bottom: item({ id: 'b', category: 'bottom', isNeutral: true }),
+      shoes: item({ id: 's', category: 'shoes', isNeutral: true }),
+      midLayer: dual,
+      outerwear: null,
+      accessories: [],
+    }
+    expect(comboHasDuplicateSlots(combo)).toBe(true)
+  })
+
+  it('normalizes legacy single-value category strings to arrays', () => {
+    expect(normalizeCategories('top')).toEqual(['top'])
+  })
+})
+
+describe('LOGIC-01 palette score includes neutrals', () => {
+  const analysisPalette = DEFAULT_PALETTE.map((color, index) => ({
+    ...color,
+    id: `p-${index}`,
+  }))
+
+  it('scores Cream Whisper tee ~+17–20 while Neutral stays budget-free', () => {
+    const [cream] = annotateWardrobeWithPalette(
+      [
+        item({
+          id: 'cream',
+          hex: '#EEE0D1',
+          category: 'top',
+          isNeutral: true,
+          label: 'Cream Whisper tee',
+        }),
+      ],
+      analysisPalette,
+    )
+    expect(cream.isNeutral).toBe(true)
+    expect(palettePointsForItem(cream)).toBeGreaterThanOrEqual(17)
+    expect(palettePointsForItem(cream)).toBeLessThanOrEqual(20)
+  })
+
+  it('scores a black tee about 0 palette points while Neutral', () => {
+    const [black] = annotateWardrobeWithPalette(
+      [item({ id: 'black', hex: '#000000', category: 'top', isNeutral: true })],
+      analysisPalette,
+    )
+    expect(black.isNeutral).toBe(true)
+    expect(palettePointsForItem(black)).toBeLessThan(1)
   })
 })

@@ -1,4 +1,13 @@
-import { itemFitsSeason, normalizeFit } from './constants.js'
+import {
+  FORMALITY_ORDER,
+  itemHasCategory,
+  LENGTH_ORDER,
+  normalizeFit,
+  normalizeLength,
+  normalizeWarmth,
+  itemFitsSeason,
+  WARMTH_ORDER,
+} from './constants.js'
 import {
   annotateWardrobeWithPalette,
   detectColorScheme,
@@ -13,7 +22,13 @@ import { comboWeatherBonus } from './weather.js'
 
 export const MAX_COMBINATIONS = 50000
 
-const REQUIRED_CATEGORIES = ['top', 'bottom', 'shoes']
+export const LAYER_COMFORT_RULES = {
+  hot: { idealLayers: 1, maxWarmthSum: 1 },
+  mild: { idealLayers: 2, maxWarmthSum: 3 },
+  cold: { idealLayers: 3, maxWarmthSum: 6 },
+}
+
+const REQUIRED_SLOT_CATEGORIES = ['top', 'bottom', 'shoes']
 
 /** Local calendar date as YYYY-MM-DD (device timezone). */
 export function localDateISO(date = new Date()) {
@@ -58,7 +73,7 @@ export function comboRecencyPenalty(items, today = localDateISO()) {
 }
 
 function byCategory(wardrobe, category) {
-  return wardrobe.filter((item) => item.category === category)
+  return wardrobe.filter((item) => itemHasCategory(item, category))
 }
 
 function accessorySubsetCount(accessoryCount, maxAccessories) {
@@ -72,12 +87,14 @@ export function rawCombinationCount(wardrobe, maxAccessories) {
   const tops = byCategory(wardrobe, 'top').length
   const bottoms = byCategory(wardrobe, 'bottom').length
   const shoes = byCategory(wardrobe, 'shoes').length
+  const midLayerChoices = byCategory(wardrobe, 'mid-layer').length + 1
   const outerwearChoices = byCategory(wardrobe, 'outerwear').length + 1
   const accessories = byCategory(wardrobe, 'accessory').length
   return (
     tops *
     bottoms *
     shoes *
+    midLayerChoices *
     outerwearChoices *
     accessorySubsetCount(accessories, maxAccessories)
   )
@@ -100,12 +117,38 @@ function accessorySubsets(accessories, maxAccessories) {
   return subsets
 }
 
+export function layerStack(combo) {
+  return [combo.top, combo.midLayer, combo.outerwear].filter(Boolean)
+}
+
+export function comboHasDuplicateSlots(combo) {
+  const slotItems = [
+    combo.top,
+    combo.bottom,
+    combo.shoes,
+    combo.midLayer,
+    combo.outerwear,
+    ...(combo.accessories || []),
+  ].filter(Boolean)
+  const ids = slotItems.map((item) => item.id)
+  return new Set(ids).size !== ids.length
+}
+
+export function outerwearFormalityAllowed(topFormality, outerFormality) {
+  const top = FORMALITY_ORDER[topFormality]
+  const outer = FORMALITY_ORDER[outerFormality]
+  if (top == null || outer == null) return false
+  return outer >= top && outer <= top + 1
+}
+
 function enumerateCandidates(wardrobe, maxAccessories, cap) {
   const tops = byCategory(wardrobe, 'top')
   const bottoms = byCategory(wardrobe, 'bottom')
   const shoes = byCategory(wardrobe, 'shoes')
+  const midLayers = byCategory(wardrobe, 'mid-layer')
   const outerwear = byCategory(wardrobe, 'outerwear')
   const accessories = byCategory(wardrobe, 'accessory')
+  const midLayerOptions = [null, ...midLayers]
   const outerwearOptions = [null, ...outerwear]
   const accSubsets = accessorySubsets(accessories, maxAccessories)
 
@@ -113,20 +156,26 @@ function enumerateCandidates(wardrobe, maxAccessories, cap) {
   for (const top of tops) {
     for (const bottom of bottoms) {
       for (const shoe of shoes) {
-        for (const outer of outerwearOptions) {
-          for (const accs of accSubsets) {
-            if (combos.length >= cap) return combos
-            const items = [top, bottom, shoe]
-            if (outer) items.push(outer)
-            items.push(...accs)
-            combos.push({
-              top,
-              bottom,
-              shoes: shoe,
-              outerwear: outer,
-              accessories: accs,
-              items,
-            })
+        for (const mid of midLayerOptions) {
+          for (const outer of outerwearOptions) {
+            for (const accs of accSubsets) {
+              if (combos.length >= cap) return combos
+              const combo = {
+                top,
+                bottom,
+                shoes: shoe,
+                midLayer: mid,
+                outerwear: outer,
+                accessories: accs,
+              }
+              if (comboHasDuplicateSlots(combo)) continue
+              const items = [top, bottom, shoe]
+              if (mid) items.push(mid)
+              if (outer) items.push(outer)
+              items.push(...accs)
+              combo.items = items
+              combos.push(combo)
+            }
           }
         }
       }
@@ -139,14 +188,18 @@ function comboFormality(combo) {
   return combo.top.formality
 }
 
-function passesFormalityFilter(combo, formalityFilter) {
-  const required = [combo.top, combo.bottom, combo.shoes]
-  if (combo.outerwear) required.push(combo.outerwear)
-
+export function passesFormalityFilter(combo, formalityFilter) {
   const tier = combo.top.formality
-  const requiredMatch = required.every((item) => item.formality === tier)
-  const accessoriesMatch = combo.accessories.every((item) => item.formality === tier)
-  if (!requiredMatch || !accessoriesMatch) return false
+  const core = [combo.top, combo.bottom, combo.shoes]
+  if (!core.every((item) => item.formality === tier)) return false
+
+  if (combo.midLayer && combo.midLayer.formality !== tier) return false
+
+  if (combo.outerwear && !outerwearFormalityAllowed(tier, combo.outerwear.formality)) {
+    return false
+  }
+
+  if (!combo.accessories.every((item) => item.formality === tier)) return false
 
   if (formalityFilter && formalityFilter !== 'any' && tier !== formalityFilter) {
     return false
@@ -161,7 +214,7 @@ function passesSeasonFilter(combo, seasonFilter) {
 }
 
 function itemName(item) {
-  return item.label || item.category
+  return item.label || (Array.isArray(item.category) ? item.category[0] : item.category)
 }
 
 function paletteLabel(color) {
@@ -186,18 +239,32 @@ function representativeNonNeutrals(items) {
   return reps
 }
 
-function paletteAppendix(nonNeutrals) {
-  const closest = [...nonNeutrals].sort(
+/** Mention closest palette match when ΔE < 12 (neutrals included). */
+function paletteAppendix(items) {
+  const closest = [...(items || [])].sort(
     (a, b) => (a.deltaE ?? Infinity) - (b.deltaE ?? Infinity),
   )[0]
   if (!closest?.closestPaletteMatch || !Number.isFinite(closest.deltaE)) return ''
+  if (closest.deltaE >= SAME_COLOR_DELTA_E) return ''
   return ` '${itemName(closest)}' is close to your palette color '${paletteLabel(closest.closestPaletteMatch)}' (ΔE ${closest.deltaE.toFixed(1)}).`
+}
+
+/** Palette closeness for one item: max(0, 20 − ΔE). Neutrals are included. */
+export function palettePointsForItem(item) {
+  if (!item?.hex) return 0
+  const distance = Number.isFinite(item.deltaE) ? item.deltaE : 20
+  return Math.max(0, 20 - distance)
+}
+
+export function palettePointsForCombo(items) {
+  return (items || []).reduce((sum, item) => sum + palettePointsForItem(item), 0)
 }
 
 function analyzeFit(combo) {
   const topFit = normalizeFit(combo.top.fit)
   const bottomFit = normalizeFit(combo.bottom.fit)
   const silhouette = [combo.top, combo.bottom]
+  if (combo.midLayer) silhouette.push(combo.midLayer)
   if (combo.outerwear) silhouette.push(combo.outerwear)
 
   const relaxedItems = silhouette.filter((item) => normalizeFit(item.fit) === 'relaxed')
@@ -226,6 +293,71 @@ function analyzeFit(combo) {
   }
 }
 
+export function analyzeLayerStyle(combo) {
+  const stack = layerStack(combo)
+  let extraScore = 0
+  let lengthHierarchyBonus = false
+  let warmthGradingPenalty = false
+  let heavyBulkPenalty = false
+
+  if (stack.length >= 2) {
+    lengthHierarchyBonus = true
+    for (let i = 1; i < stack.length; i += 1) {
+      const inner = stack[i - 1]
+      const outer = stack[i]
+      const innerLen = LENGTH_ORDER[normalizeLength(inner.length)]
+      const outerLen = LENGTH_ORDER[normalizeLength(outer.length)]
+      if (outerLen < innerLen) lengthHierarchyBonus = false
+
+      const innerWarm = WARMTH_ORDER[normalizeWarmth(inner.warmth)]
+      const outerWarm = WARMTH_ORDER[normalizeWarmth(outer.warmth)]
+      if (outerWarm < innerWarm) {
+        warmthGradingPenalty = true
+        extraScore -= 4
+      }
+    }
+    if (lengthHierarchyBonus) extraScore += 2
+  }
+
+  const heavyCount = stack.filter((item) => normalizeWarmth(item.warmth) === 'heavy').length
+  if (heavyCount > 1) {
+    heavyBulkPenalty = true
+    extraScore -= 4
+  }
+
+  return {
+    extraScore,
+    lengthHierarchyBonus,
+    warmthGradingPenalty,
+    heavyBulkPenalty,
+  }
+}
+
+export function bandFromWeatherSeasons(weatherSeasons) {
+  if (!weatherSeasons?.length) return null
+  const set = new Set(weatherSeasons)
+  if (set.has('summer') && !set.has('winter') && set.size === 1) return 'hot'
+  if (set.has('winter') && !set.has('summer')) return 'cold'
+  if (set.has('spring') || set.has('fall')) return 'mild'
+  if (set.has('summer')) return 'hot'
+  return 'mild'
+}
+
+export function comboComfortPenalty(combo, band) {
+  if (!band || !LAYER_COMFORT_RULES[band]) return 0
+  const rules = LAYER_COMFORT_RULES[band]
+  const stack = layerStack(combo)
+  const layerCount = stack.length
+  const warmthSum = stack.reduce(
+    (sum, item) => sum + WARMTH_ORDER[normalizeWarmth(item.warmth)],
+    0,
+  )
+  let penalty = 0
+  if (layerCount > rules.idealLayers + 1) penalty -= 3
+  if (band === 'cold' && warmthSum < rules.maxWarmthSum / 2) penalty -= 3
+  return penalty
+}
+
 function fitAppendix(fit) {
   let extra = ''
   if (fit.fitBalanceApplied) {
@@ -237,18 +369,25 @@ function fitAppendix(fit) {
   return extra
 }
 
+function midLayerAppendix(combo) {
+  if (!combo.midLayer) return ''
+  return ` Let the ${itemName(combo.top)} show slightly at the cuff or collar under the ${itemName(combo.midLayer)} for a more deliberate look.`
+}
+
 function buildExplanation(combo, colorScheme, fit) {
   const neutrals = combo.items.filter((item) => item.isNeutral)
   const nonNeutrals = combo.items.filter((item) => !item.isNeutral)
   const baseNeutral =
-    neutrals.find((item) => REQUIRED_CATEGORIES.includes(item.category)) ||
+    neutrals.find((item) => itemHasCategory(item, 'top') || itemHasCategory(item, 'bottom')) ||
     neutrals[0]
   const grounded = baseNeutral ? itemName(baseNeutral) : 'neutral pieces'
   const reps = representativeNonNeutrals(combo.items)
-  const appendix = paletteAppendix(nonNeutrals) + fitAppendix(fit)
+  const appendix =
+    paletteAppendix(combo.items) + fitAppendix(fit) + midLayerAppendix(combo)
 
   if (colorScheme === 'neutral-only') {
-    return `All-neutral look — ${listNames(combo.items)} rely on tone and texture rather than color contrast.`
+    // LOOP-02: still duplicates midLayer; fixed in that finding's commit.
+    return `All-neutral look — ${listNames(combo.items)} rely on tone and texture rather than color contrast.${midLayerAppendix(combo)}${paletteAppendix(combo.items)}${fitAppendix(fit)}`
   }
 
   if (colorScheme === 'monochromatic') {
@@ -272,27 +411,53 @@ function buildExplanation(combo, colorScheme, fit) {
   return appendix.trim()
 }
 
-function scoreCombo(combo, weatherSeasons = null) {
-  const nonNeutrals = combo.items.filter((item) => !item.isNeutral)
-  let score = 0
-
-  for (const item of nonNeutrals) {
-    const distance = Number.isFinite(item.deltaE) ? item.deltaE : 20
-    score += Math.max(0, 20 - distance)
-  }
-
-  if (combo.accessories.length === 1) score += 2
-
+/**
+ * Soft style adjustments only (fit, layering, recency, weather, comfort, accessory, saturation).
+ * Used for LOGIC-01 dominance measurement — weights are not retuned here.
+ */
+export function styleAdjustmentTotal(combo, weatherSeasons = null) {
+  const nonNeutrals = (combo.items || []).filter((item) => !item.isNeutral)
+  let total = 0
+  if ((combo.accessories || []).length === 1) total += 2
   const loudNonNeutrals = nonNeutrals.filter((item) => isHighSaturation(item.hex))
   if (loudNonNeutrals.length >= 2) {
-    score -= 3 * loudNonNeutrals.length
+    total -= 3 * loudNonNeutrals.length
   }
+  total += analyzeFit(combo).extraScore
+  total += analyzeLayerStyle(combo).extraScore
+  total += comboRecencyPenalty(combo.items)
+  total += comboWeatherBonus(combo.items, weatherSeasons)
+  total += comboComfortPenalty(combo, bandFromWeatherSeasons(weatherSeasons))
+  return total
+}
 
+export function absStyleAdjustmentSum(combo, weatherSeasons = null) {
+  const nonNeutrals = (combo.items || []).filter((item) => !item.isNeutral)
+  const parts = []
+  if ((combo.accessories || []).length === 1) parts.push(2)
+  const loudNonNeutrals = nonNeutrals.filter((item) => isHighSaturation(item.hex))
+  if (loudNonNeutrals.length >= 2) parts.push(Math.abs(-3 * loudNonNeutrals.length))
   const fit = analyzeFit(combo)
-  score += fit.extraScore
-  score += comboRecencyPenalty(combo.items)
-  score += comboWeatherBonus(combo.items, weatherSeasons)
-  return { score, fit }
+  if (fit.extraScore) parts.push(Math.abs(fit.extraScore))
+  const layerStyle = analyzeLayerStyle(combo)
+  if (layerStyle.extraScore) parts.push(Math.abs(layerStyle.extraScore))
+  const recency = comboRecencyPenalty(combo.items)
+  if (recency) parts.push(Math.abs(recency))
+  const weather = comboWeatherBonus(combo.items, weatherSeasons)
+  if (weather) parts.push(Math.abs(weather))
+  const comfort = comboComfortPenalty(combo, bandFromWeatherSeasons(weatherSeasons))
+  if (comfort) parts.push(Math.abs(comfort))
+  return parts.reduce((sum, n) => sum + n, 0)
+}
+
+function scoreCombo(combo, weatherSeasons = null) {
+  const palettePoints = palettePointsForCombo(combo.items)
+  const fit = analyzeFit(combo)
+  const style = styleAdjustmentTotal(combo, weatherSeasons)
+  // styleAdjustmentTotal already includes fit.extraScore; avoid double-counting by
+  // recomputing: palette + style where style uses analyzeFit inside.
+  const score = palettePoints + style
+  return { score, fit, palettePoints, style }
 }
 
 function comboKey(combo) {
@@ -311,16 +476,13 @@ export function generateOutfits(
 ) {
   if (!wardrobe?.length) return []
 
-  const missingRequired = REQUIRED_CATEGORIES.some(
+  const missingRequired = REQUIRED_SLOT_CATEGORIES.some(
     (category) => byCategory(wardrobe, category).length === 0,
   )
   if (missingRequired) return []
 
-  // Step 0 — precompute closest palette match / ΔE once per item.
   const annotated = annotateWardrobeWithPalette(wardrobe, palette || [])
 
-  // Step 1 — enumerate, capping at 50,000. Prefer dropping 2-accessory
-  // subsets before truncating the loop.
   let maxAccessories = 2
   const rawWithTwo = rawCombinationCount(annotated, 2)
   if (rawWithTwo > MAX_COMBINATIONS) {
@@ -341,23 +503,21 @@ export function generateOutfits(
 
   const scored = []
   for (const combo of candidates) {
-    // Step 2 — formality (and season, if filtered).
     if (!passesFormalityFilter(combo, formalityFilter)) continue
     if (!passesSeasonFilter(combo, seasonFilter)) continue
 
-    // Step 3 — 3-color rule, then scheme classification.
     const nonNeutralHexes = distinctNonNeutralHexes(combo.items)
     if (nonNeutralHexes.length > 2) continue
     const colorScheme = detectColorScheme(nonNeutralHexes)
     if (colorScheme === 'unclassified') continue
 
-    // Step 4 — score survivors (palette, fit, recency, optional weather).
     const { score, fit } = scoreCombo(combo, activeWeatherSeasons)
     scored.push({
       items: combo.items,
       top: combo.top,
       bottom: combo.bottom,
       shoes: combo.shoes,
+      midLayer: combo.midLayer,
       outerwear: combo.outerwear,
       accessories: combo.accessories,
       formality: comboFormality(combo),
@@ -367,7 +527,6 @@ export function generateOutfits(
     })
   }
 
-  // Step 5 — dedupe by item-id set, then keep the best of each scheme.
   const seen = new Set()
   const unique = []
   for (const outfit of scored) {
