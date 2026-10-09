@@ -13,9 +13,11 @@ create table if not exists public.wardrobe_items (
   id uuid primary key,
   user_id uuid not null references auth.users (id) on delete cascade,
   hex text not null,
-  category text not null,
+  category text[] not null default array['top']::text[],
   formality text not null,
   fit text not null default 'regular',
+  warmth text check (warmth in ('light', 'medium', 'heavy')),
+  length text check (length in ('cropped', 'regular', 'long')),
   seasons text[] not null default '{}',
   is_neutral boolean not null default false,
   label text,
@@ -28,6 +30,8 @@ alter table public.wardrobe_items
   add column if not exists last_worn date;
 
 create index if not exists palette_colors_user_id_idx on public.palette_colors (user_id);
+create unique index if not exists palette_colors_user_hex_uidx
+  on public.palette_colors (user_id, lower(hex));
 create index if not exists wardrobe_items_user_id_idx on public.wardrobe_items (user_id);
 
 alter table public.palette_colors enable row level security;
@@ -117,7 +121,7 @@ create or replace function public.increment_edge_function_usage(fn_name text)
 returns int
 language plpgsql
 security definer
-set search_path = public
+set search_path = ''
 as $$
 declare
   uid uuid := auth.uid();
@@ -135,5 +139,33 @@ begin
 end;
 $$;
 
+create or replace function public.refund_edge_function_usage(fn_name text)
+returns int
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  uid uuid := auth.uid();
+  new_count int;
+begin
+  if uid is null then
+    raise exception 'not authenticated';
+  end if;
+  update public.edge_function_usage
+  set call_count = greatest(public.edge_function_usage.call_count - 1, 0)
+  where user_id = uid
+    and function_name = fn_name
+    and usage_date = (timezone('utc', now()))::date
+  returning call_count into new_count;
+  return coalesce(new_count, 0);
+end;
+$$;
+
 revoke all on function public.increment_edge_function_usage(text) from public;
+revoke all on function public.increment_edge_function_usage(text) from anon;
 grant execute on function public.increment_edge_function_usage(text) to authenticated;
+
+revoke all on function public.refund_edge_function_usage(text) from public;
+revoke all on function public.refund_edge_function_usage(text) from anon;
+grant execute on function public.refund_edge_function_usage(text) to authenticated;
