@@ -45,8 +45,51 @@ export function toHex(value) {
   return chroma(value).hex()
 }
 
+/** Canonical palette hex: lowercase #rrggbb (or null if invalid). */
+export function normalizePaletteHex(value) {
+  const viaChroma = toHex(value)
+  if (viaChroma) return viaChroma
+  if (!value || typeof value !== 'string') return null
+  const trimmed = value.trim().toLowerCase()
+  if (/^#[0-9a-f]{6}$/.test(trimmed)) return trimmed
+  if (/^[0-9a-f]{6}$/.test(trimmed)) return `#${trimmed}`
+  if (/^#[0-9a-f]{3}$/.test(trimmed)) {
+    const [, r, g, b] = trimmed
+    return `#${r}${r}${g}${g}${b}${b}`
+  }
+  return null
+}
+
+/** Keep first color for each normalized hex; drop later duplicates. */
+export function dedupePaletteColors(colors) {
+  if (!colors?.length) return []
+  const seen = new Set()
+  const unique = []
+  for (const color of colors) {
+    const hex = normalizePaletteHex(typeof color === 'string' ? color : color.hex)
+    if (!hex) {
+      unique.push(color)
+      continue
+    }
+    if (seen.has(hex)) continue
+    seen.add(hex)
+    unique.push(typeof color === 'string' ? hex : { ...color, hex })
+  }
+  return unique
+}
+
+/** Negligible chroma (LCH C < 8) — no reliable hue for scheme detection. */
+export const LOW_CHROMA_THRESHOLD = 8
+
+export function isLowChroma(hex) {
+  if (!isValidHex(hex)) return false
+  const chromaValue = chroma(hex).get('lch.c')
+  return Number.isFinite(chromaValue) && chromaValue < LOW_CHROMA_THRESHOLD
+}
+
 export function isSuggestedNeutral(hex) {
   if (!isValidHex(hex)) return false
+  if (isLowChroma(hex)) return true
   return NEUTRALS.some((neutralRef) => chroma.deltaE(hex, neutralRef) < SAME_COLOR_DELTA_E)
 }
 
@@ -87,13 +130,15 @@ export function hueFamilyName(hex) {
 export function detectColorScheme(hexList) {
   const hexes = hexList || []
   if (hexes.length === 0) return 'neutral-only'
-  if (hexes.length === 1) return 'monochromatic'
-  if (hexes.length !== 2) return 'unclassified'
 
-  const h1 = hueOf(hexes[0])
-  const h2 = hueOf(hexes[1])
-  if (!Number.isFinite(h1) || !Number.isFinite(h2)) return 'unclassified'
+  // Drop hue-less / low-chroma colors from hue comparison; they still occupy
+  // the color budget when not flagged Neutral (handled by the caller).
+  const chromatic = hexes.filter((hex) => !isLowChroma(hex) && Number.isFinite(hueOf(hex)))
+  if (chromatic.length <= 1) return 'monochromatic'
+  if (chromatic.length !== 2) return 'unclassified'
 
+  const h1 = hueOf(chromatic[0])
+  const h2 = hueOf(chromatic[1])
   const distance = circularHueDistance(h1, h2)
   if (distance <= 20) return 'monochromatic'
   if (distance <= 60) return 'analogous'
@@ -120,15 +165,42 @@ export function findClosestPaletteColor(hex, palette) {
   return { closestPaletteMatch, deltaE: bestDeltaE }
 }
 
+/**
+ * Distinct non-neutral colors via connected components (union-find) on ΔE < 12.
+ * Order-independent: A≈B and B≈C imply one component even when A≉C.
+ */
 export function distinctNonNeutralHexes(items) {
-  const representatives = []
-  for (const item of items.filter((entry) => !entry.isNeutral)) {
-    const alreadyCounted = representatives.some(
-      (rep) => deltaE(rep, item.hex) < SAME_COLOR_DELTA_E,
-    )
-    if (!alreadyCounted) representatives.push(item.hex)
+  const hexes = (items || [])
+    .filter((entry) => !entry.isNeutral && isValidHex(entry.hex))
+    .map((entry) => toHex(entry.hex) || entry.hex)
+  if (!hexes.length) return []
+
+  const parent = hexes.map((_, i) => i)
+  function find(i) {
+    while (parent[i] !== i) {
+      parent[i] = parent[parent[i]]
+      i = parent[i]
+    }
+    return i
   }
-  return representatives
+  function union(a, b) {
+    const ra = find(a)
+    const rb = find(b)
+    if (ra !== rb) parent[rb] = ra
+  }
+
+  for (let i = 0; i < hexes.length; i += 1) {
+    for (let j = i + 1; j < hexes.length; j += 1) {
+      if (deltaE(hexes[i], hexes[j]) < SAME_COLOR_DELTA_E) union(i, j)
+    }
+  }
+
+  const roots = new Map()
+  for (let i = 0; i < hexes.length; i += 1) {
+    const root = find(i)
+    if (!roots.has(root)) roots.set(root, hexes[i])
+  }
+  return [...roots.values()]
 }
 
 export function countDistinctNonNeutralColors(items) {
@@ -155,6 +227,23 @@ export function isNearExistingColor(hex, colors, threshold = SAME_COLOR_DELTA_E)
     return deltaE(hex, other) < threshold
   })
 }
+
+/** Exact hex match after normalization (e.g. #C08081 → #c08081). */
+export function findPaletteColorByHex(hex, colors) {
+  const normalized = normalizePaletteHex(hex)
+  if (!normalized || !colors?.length) return null
+  return (
+    colors.find((color) => {
+      const other = typeof color === 'string' ? color : color.hex
+      return normalizePaletteHex(other) === normalized
+    }) || null
+  )
+}
+
+export function paletteHasHex(hex, colors) {
+  return Boolean(findPaletteColorByHex(hex, colors))
+}
+
 
 function extractDominantColors(imageData, options = {}) {
   if (!imageData?.data?.length) return []
