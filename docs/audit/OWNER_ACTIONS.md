@@ -32,6 +32,7 @@ Paste and run each file’s contents (or the whole file) in **SQL Editor → New
    - `supabase/migration_layering.sql`
    - `supabase/migration_palette_hex_unique.sql`
 3. **Required for Batch 1:** `supabase/migrations/20261009153000_refund_edge_function_usage.sql`
+4. **Required for Batch 1:** `supabase/migrations/20261009153100_wardrobe_bucket_mime.sql` (or the SQL in section 3 below)
 
 ## 3. Storage bucket MIME types (remove SVG)
 

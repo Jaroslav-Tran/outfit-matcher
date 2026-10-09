@@ -59,7 +59,7 @@ values (
   'wardrobe',
   false,
   2097152,
-  array['image/jpeg', 'image/png', 'image/webp', 'image/svg+xml']
+  array['image/jpeg', 'image/png', 'image/webp']
 )
 on conflict (id) do nothing;
 
