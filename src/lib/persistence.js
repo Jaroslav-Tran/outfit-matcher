@@ -1,5 +1,6 @@
 import { supabase } from './supabase.js'
 import { revokeIfBlobUrl } from './imageUtils.js'
+import { deleteWardrobeItemFlow } from './persistenceDelete.js'
 
 const BUCKET = 'wardrobe'
 
@@ -187,16 +188,22 @@ export async function markItemsWorn(userId, itemIds, wornDate) {
 }
 
 export async function deleteWardrobeItemRow(userId, item) {
-  if (item.imagePath) {
-    await supabase.storage.from(BUCKET).remove([item.imagePath])
-  }
-  const { error } = await supabase
-    .from('wardrobe_items')
-    .delete()
-    .eq('user_id', userId)
-    .eq('id', item.id)
-  throwIfError(error)
-  revokeIfBlobUrl(item.imageUrl)
+  return deleteWardrobeItemFlow({
+    item,
+    deleteRow: async () => {
+      const { error } = await supabase
+        .from('wardrobe_items')
+        .delete()
+        .eq('user_id', userId)
+        .eq('id', item.id)
+      throwIfError(error)
+    },
+    removeStorage: async (path) => {
+      const { error } = await supabase.storage.from(BUCKET).remove([path])
+      throwIfError(error)
+    },
+    revokeBlobUrl: revokeIfBlobUrl,
+  })
 }
 
 export async function replaceAllData(userId, palette, wardrobe) {
