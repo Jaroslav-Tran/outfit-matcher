@@ -1,10 +1,11 @@
-import { useEffect, useRef, useState } from 'react'
+import { lazy, Suspense, useEffect, useRef, useState } from 'react'
 import AuthScreen from './components/AuthScreen.jsx'
-import PaletteTab from './components/PaletteTab.jsx'
-import WardrobeTab from './components/WardrobeTab.jsx'
-import OutfitTab from './components/OutfitTab.jsx'
 import SegmentedControl from './components/SegmentedControl.jsx'
 import ThemeToggle from './components/ThemeToggle.jsx'
+
+const PaletteTab = lazy(() => import('./components/PaletteTab.jsx'))
+const WardrobeTab = lazy(() => import('./components/WardrobeTab.jsx'))
+const OutfitTab = lazy(() => import('./components/OutfitTab.jsx'))
 import { useTheme } from './hooks/useTheme.js'
 import { createSampleData } from './lib/sampleData.js'
 import { canOfferSampleData, filterNewSampleWardrobe } from './lib/sampleAppend.js'
@@ -49,6 +50,7 @@ function App() {
   const [persistError, setPersistError] = useState('')
   const [exporting, setExporting] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
+  const [mountedTabs, setMountedTabs] = useState(() => new Set(['palette']))
   const { preference: themePreference, cyclePreference } = useTheme()
   const menuRef = useRef(null)
   const wardrobeRef = useRef(wardrobe)
@@ -63,6 +65,15 @@ function App() {
       wardrobeRef.current.forEach((item) => revokeIfBlobUrl(item.imageUrl))
     }
   }, [])
+
+  useEffect(() => {
+    setMountedTabs((prev) => {
+      if (prev.has(tab)) return prev
+      const next = new Set(prev)
+      next.add(tab)
+      return next
+    })
+  }, [tab])
 
   useEffect(() => {
     if (!menuOpen) return undefined
@@ -473,38 +484,46 @@ function App() {
       {persistError ? <p className="error banner">{persistError}</p> : null}
       {hydrating ? <p className="empty">Loading your wardrobe…</p> : null}
 
-      <div hidden={tab !== 'palette'}>
-        <PaletteTab
-          palette={palette}
-          savedReferenceUrl={paletteReferenceUrl}
-          onAddColor={addPaletteColor}
-          onAddColors={addPaletteColors}
-          onRemoveColor={removePaletteColor}
-          onSaveReference={savePaletteScreenshot}
-        />
-      </div>
-      <div hidden={tab !== 'wardrobe'}>
-        <WardrobeTab
-          wardrobe={wardrobe}
-          palette={palette}
-          onAddItem={addWardrobeItem}
-          onRemoveItem={removeWardrobeItem}
-          onUpdateItem={updateWardrobeItem}
-          onLoadSample={loadSampleData}
-          sampleAllowed={canOfferSampleData(wardrobe, import.meta.env.DEV)}
-          hydrating={hydrating}
-          onImageError={refreshWardrobeItemUrl}
-        />
-      </div>
-      <div hidden={tab !== 'outfit'}>
-        <OutfitTab
-          wardrobe={wardrobe}
-          palette={palette}
-          onMarkOutfitWorn={markOutfitWorn}
-          hydrating={hydrating}
-          onImageError={refreshWardrobeItemUrl}
-        />
-      </div>
+      <Suspense fallback={<p className="empty">Loading…</p>}>
+        {mountedTabs.has('palette') ? (
+          <div hidden={tab !== 'palette'}>
+            <PaletteTab
+              palette={palette}
+              savedReferenceUrl={paletteReferenceUrl}
+              onAddColor={addPaletteColor}
+              onAddColors={addPaletteColors}
+              onRemoveColor={removePaletteColor}
+              onSaveReference={savePaletteScreenshot}
+            />
+          </div>
+        ) : null}
+        {mountedTabs.has('wardrobe') ? (
+          <div hidden={tab !== 'wardrobe'}>
+            <WardrobeTab
+              wardrobe={wardrobe}
+              palette={palette}
+              onAddItem={addWardrobeItem}
+              onRemoveItem={removeWardrobeItem}
+              onUpdateItem={updateWardrobeItem}
+              onLoadSample={loadSampleData}
+              sampleAllowed={canOfferSampleData(wardrobe, import.meta.env.DEV)}
+              hydrating={hydrating}
+              onImageError={refreshWardrobeItemUrl}
+            />
+          </div>
+        ) : null}
+        {mountedTabs.has('outfit') ? (
+          <div hidden={tab !== 'outfit'}>
+            <OutfitTab
+              wardrobe={wardrobe}
+              palette={palette}
+              onMarkOutfitWorn={markOutfitWorn}
+              hydrating={hydrating}
+              onImageError={refreshWardrobeItemUrl}
+            />
+          </div>
+        ) : null}
+      </Suspense>
     </div>
   )
 }
