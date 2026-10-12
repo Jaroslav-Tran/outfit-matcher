@@ -116,14 +116,14 @@ XSS sinks (dangerouslySetInnerHTML / innerHTML / document.write) → none in src
 | ID | Sev | Conf | Category | Location | Status |
 |----|-----|------|----------|----------|--------|
 | LOGIC-01 | High | CONFIRMED | Conflicting logic | `colorUtils.js` + `sampleData.js` | FIXED `10cf3eb` (weights not retuned; see FIX_LOG) |
-| LOOP-01 | High | CONFIRMED | Runaway work | `outfitGenerator.js` | (Batch 3) |
+| LOOP-01 | High | CONFIRMED | Runaway work | `outfitGenerator.js` | FIXED `be5ce33` (no worker; ~168ms pruned) |
 | DATA-01 | High | CONFIRMED | Data integrity | `persistence.js` delete path | FIXED `21fd48f` |
 | SEC-01 | High | CONFIRMED | Security | `suggest-garment/index.ts` | FIXED `0ab5a9e` (+ wired in `ee6e24e`) |
 | SEC-02 | Medium | CONFIRMED | Security (hygiene) | `cors.ts` + Edge Function | FIXED `e4791ba` (+ wired in `ee6e24e`); owner must set `ALLOWED_ORIGINS` |
 | LOGIC-02 | High | CONFIRMED | Contradiction | README vs `outfitGenerator.js` formality | FIXED `4b9f59d` |
 | DATA-02 | Medium | CONFIRMED | Data integrity | sample append / WardrobeTab | FIXED `d990fb2` |
-| DATA-03 | Medium | LIKELY | Race / UX | `App.jsx` hydrating vs Generate | (Batch 3) |
-| DATA-04 | Medium | CONFIRMED | State | signed URLs 7d in memory only | (Batch 3) |
+| DATA-03 | Medium | LIKELY | Race / UX | `App.jsx` hydrating vs Generate | FIXED `096940d` |
+| DATA-04 | Medium | CONFIRMED | State | signed URLs 7d in memory only | FIXED `a73832a` |
 | DATA-05 | Medium | LIKELY | Double-submit | WardrobeTab / sample button | FIXED `bca2007` |
 | LOGIC-03 | Medium | CONFIRMED | Contradiction | README combo formula omits mid-layer | FIXED `4b9f59d` |
 | LOGIC-04 | Medium | CONFIRMED | Contradiction | README fit stack vs code includes mid-layer | FIXED `4b9f59d` |
@@ -133,7 +133,7 @@ XSS sinks (dangerouslySetInnerHTML / innerHTML / document.write) → none in src
 | SEC-03 | Medium | CONFIRMED | Security | rate limit before Claude + error `detail` | FIXED `4099d36` / `f8810ad`; owner must run refund migration + redeploy |
 | SEC-04 | Medium | CONFIRMED | Security | no server enum/label sanitize | FIXED `ee6e24e` |
 | SEC-05 | Medium | CONFIRMED | Supply chain | `npm audit` source-map-js | (Batch 4) |
-| ERR-01 | Medium | CONFIRMED | Error handling | no React error boundary | (Batch 3) |
+| ERR-01 | Medium | CONFIRMED | Error handling | no React error boundary | FIXED `bb70dff` |
 | PRIV-01 | Medium | CONFIRMED | Privacy | Open-Meteo full coordinates | (Batch 4) |
 | LOOP-02 | Low | CONFIRMED | Logic/UX | `midLayerAppendix` duplicated (neutral-only) | FIXED `7f19685` |
 | DATA-06 | Low | CONFIRMED | Integrity | dual-category items appear in two grid groups | (Batch 4) |

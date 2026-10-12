@@ -1,5 +1,39 @@
 # Fix log
 
+## Batch 3 — Robustness and error handling (2026-10-12)
+
+Stopped for owner approval before Batch 4.
+
+### Findings
+
+| Finding | Status | Files | Tests | Commit |
+|---------|--------|-------|-------|--------|
+| LOOP-01 | FIXED | `outfitGenerator.js`, `OutfitTab.jsx` | last-added over-cap; order-independent; small closet | `be5ce33` |
+| DATA-03 | FIXED | `App.jsx`, Wardrobe/Bulk/Outfit | hydrating disables actions | `096940d` |
+| DATA-04 | FIXED | `signedUrlRefresh.js`, `persistence.js`, App/imgs | resign guard ≤1/window | `a73832a` |
+| ERR-01 | FIXED | `ErrorBoundary.jsx`, `main.jsx` | getDerivedStateFromError + log | `bb70dff` |
+
+### LOOP-01 timing (large synthetic closet ~61 items)
+
+| Metric | Before (audit) | After prune |
+|--------|----------------:|------------:|
+| Raw combo estimate (max accessories 2) | ~9.8M | — |
+| Plan | truncate @ 50k | accessories=0, top-K=8, est. 41 472 |
+| `generateOutfits` wall time (Node) | ~1300 ms | **~168 ms** |
+| Sample closet | — | ~8 ms |
+
+Web Worker **not** added (under 300 ms threshold after pruning). Async UI path yields every 2000 leaves via `generateOutfitsAsync`.
+
+### Checks after Batch 3
+
+```
+npm run test  → 13 files, 84 passed
+npm run lint  → unused CATEGORIES warning only
+npm run build → OK
+```
+
+---
+
 ## Batch 2 — Core-logic correctness (2026-10-09)
 
 Stopped for owner approval before Batch 3.
