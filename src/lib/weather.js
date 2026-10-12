@@ -44,6 +44,19 @@ export function comboWeatherBonus(items, weatherSeasons) {
   )
 }
 
+/** Round lat/lon to 1 decimal place before sending to Open-Meteo (PRIV-01). */
+export function roundCoord(value) {
+  return Math.round(Number(value) * 10) / 10
+}
+
+export function openMeteoForecastUrl(lat, lon) {
+  const url = new URL('https://api.open-meteo.com/v1/forecast')
+  url.searchParams.set('latitude', String(roundCoord(lat)))
+  url.searchParams.set('longitude', String(roundCoord(lon)))
+  url.searchParams.set('current', 'temperature_2m')
+  return url
+}
+
 function readCachedWeather(lat, lon) {
   if (!weatherCache) return null
   if (Date.now() - weatherCache.fetchedAt > CACHE_MS) return null
@@ -61,13 +74,12 @@ export function clearWeatherCache() {
 }
 
 export async function fetchOpenMeteoTemp(lat, lon) {
-  const cached = readCachedWeather(lat, lon)
+  const roundedLat = roundCoord(lat)
+  const roundedLon = roundCoord(lon)
+  const cached = readCachedWeather(roundedLat, roundedLon)
   if (cached) return cached
 
-  const url = new URL('https://api.open-meteo.com/v1/forecast')
-  url.searchParams.set('latitude', String(lat))
-  url.searchParams.set('longitude', String(lon))
-  url.searchParams.set('current', 'temperature_2m')
+  const url = openMeteoForecastUrl(roundedLat, roundedLon)
 
   const response = await fetch(url)
   if (!response.ok) throw new Error('Weather request failed')
@@ -77,8 +89,8 @@ export async function fetchOpenMeteoTemp(lat, lon) {
 
   const band = bandFromTempC(tempC)
   weatherCache = {
-    lat,
-    lon,
+    lat: roundedLat,
+    lon: roundedLon,
     tempC,
     band,
     seasons: seasonsForBand(band),
@@ -91,7 +103,7 @@ export async function fetchOpenMeteoTemp(lat, lon) {
 export function getCurrentPosition() {
   return new Promise((resolve, reject) => {
     if (!navigator?.geolocation) {
-      reject(new Error('Geolocation is not supported'))
+      reject(Object.assign(new Error('Geolocation is not supported in this browser'), { code: 0 }))
       return
     }
     navigator.geolocation.getCurrentPosition(
@@ -102,20 +114,46 @@ export function getCurrentPosition() {
         })
       },
       (error) => reject(error),
-      { enableHighAccuracy: false, timeout: 12000, maximumAge: 5 * 60 * 1000 },
+      { enableHighAccuracy: false, timeout: 15000, maximumAge: 5 * 60 * 1000 },
     )
   })
 }
 
+export function geolocationErrorMessage(error) {
+  const code = error?.code
+  if (code === 1) {
+    return 'Location permission denied. Allow Location for this browser in System Settings, or use Cold / Mild / Hot.'
+  }
+  if (code === 2) {
+    return 'Location unavailable. Check that Location Services is on, or use Cold / Mild / Hot.'
+  }
+  if (code === 3) {
+    return 'Location timed out. Try again, or use Cold / Mild / Hot.'
+  }
+  if (code === 0) {
+    return 'This browser cannot use location. Use Cold / Mild / Hot.'
+  }
+  return 'Could not get weather from location. Use Cold / Mild / Hot.'
+}
+
 /**
- * Try geolocation + Open-Meteo. On any failure returns null (caller falls back to manual).
+ * Try geolocation + Open-Meteo.
+ * Returns { ok: true, weather } or { ok: false, message }.
  */
 export async function resolveWeatherFromLocation() {
   try {
     const { lat, lon } = await getCurrentPosition()
-    return await fetchOpenMeteoTemp(lat, lon)
-  } catch {
-    return null
+    try {
+      const weather = await fetchOpenMeteoTemp(lat, lon)
+      return { ok: true, weather }
+    } catch {
+      return {
+        ok: false,
+        message: 'Got your location, but the weather request failed. Use Cold / Mild / Hot.',
+      }
+    }
+  } catch (error) {
+    return { ok: false, message: geolocationErrorMessage(error) }
   }
 }
 
