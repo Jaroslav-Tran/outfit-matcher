@@ -4,6 +4,7 @@ import { normalizeCategories } from './constants.js'
 import { normalizePaletteHex, paletteHasHex } from './colorUtils.js'
 import { deleteWardrobeItemFlow } from './persistenceDelete.js'
 import { filterNewSampleWardrobe } from './sampleAppend.js'
+import { SIGNED_URL_TTL_SECONDS } from './signedUrlRefresh.js'
 
 const BUCKET = 'wardrobe'
 
@@ -25,7 +26,9 @@ function extensionFor(blob) {
 
 export async function signUrl(path) {
   if (!path) return ''
-  const { data, error } = await supabase.storage.from(BUCKET).createSignedUrl(path, 60 * 60 * 24 * 7)
+  const { data, error } = await supabase.storage
+    .from(BUCKET)
+    .createSignedUrl(path, SIGNED_URL_TTL_SECONDS)
   throwIfError(error)
   return data.signedUrl
 }
@@ -124,7 +127,7 @@ export async function deletePaletteColor(userId, id) {
 export async function loadPaletteReference(userId) {
   const { data, error } = await supabase.storage
     .from(BUCKET)
-    .createSignedUrl(paletteReferencePath(userId), 60 * 60 * 24 * 7)
+    .createSignedUrl(paletteReferencePath(userId), SIGNED_URL_TTL_SECONDS)
   if (error || !data?.signedUrl) return ''
   return data.signedUrl
 }
