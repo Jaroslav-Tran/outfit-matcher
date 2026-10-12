@@ -1,5 +1,12 @@
 import { supabase } from './supabase.js'
-import { CATEGORIES, FITS, FORMALITIES, SEASONS } from './constants.js'
+import {
+  FITS,
+  FORMALITIES,
+  LENGTHS,
+  normalizeCategories,
+  SEASONS,
+  WARMTHS,
+} from './constants.js'
 
 export class SuggestLimitError extends Error {
   constructor(message = 'Daily AI tagging limit reached — add tags manually for now') {
@@ -27,6 +34,16 @@ function isRateLimited(data, error) {
   return status === 429 || body.error === 'rate_limited'
 }
 
+function parseSuggestedCategories(data) {
+  if (Array.isArray(data.category)) {
+    return normalizeCategories(data.category)
+  }
+  if (typeof data.category === 'string') {
+    return normalizeCategories(data.category)
+  }
+  return []
+}
+
 export async function suggestTagsFromPhoto(blob) {
   if (!supabase) return null
   const imageBase64 = await blobToBase64(blob)
@@ -38,13 +55,15 @@ export async function suggestTagsFromPhoto(blob) {
   }
   if (error || !data || data.error) return null
 
-  const category = CATEGORIES.includes(data.category) ? data.category : null
+  const category = parseSuggestedCategories(data)
   const formality = FORMALITIES.includes(data.formality) ? data.formality : null
   const fit = FITS.includes(data.fit) ? data.fit : null
+  const warmth = WARMTHS.includes(data.warmth) ? data.warmth : null
+  const length = LENGTHS.includes(data.length) ? data.length : null
   const seasons = Array.isArray(data.seasons)
     ? data.seasons.filter((season) => SEASONS.includes(season))
     : []
   const label = typeof data.label === 'string' ? data.label.trim() : ''
 
-  return { category, formality, fit, seasons, label }
+  return { category, formality, fit, warmth, length, seasons, label }
 }
