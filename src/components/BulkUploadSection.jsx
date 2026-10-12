@@ -42,7 +42,7 @@ function stateBadge(item) {
   return item.state
 }
 
-export default function BulkUploadSection({ wardrobe, palette = [], onAddItem }) {
+export default function BulkUploadSection({ wardrobe, palette = [], onAddItem, disabled = false }) {
   const [items, setItems] = useState([])
   const [capMessage, setCapMessage] = useState('')
   const [quotaBanner, setQuotaBanner] = useState('')
@@ -162,6 +162,10 @@ export default function BulkUploadSection({ wardrobe, palette = [], onAddItem })
   }
 
   function handleFilesSelected(event) {
+    if (disabled) {
+      event.target.value = ''
+      return
+    }
     const selected = event.target.files
     if (!selected?.length) return
     const { files, dropped } = capBatchSize(selected, MAX_BULK_UPLOAD_COUNT)
@@ -283,7 +287,13 @@ export default function BulkUploadSection({ wardrobe, palette = [], onAddItem })
 
       <label className="field">
         <span>Photos (multiple)</span>
-        <input type="file" accept="image/*" multiple onChange={handleFilesSelected} />
+        <input
+          type="file"
+          accept="image/*"
+          multiple
+          disabled={disabled}
+          onChange={handleFilesSelected}
+        />
       </label>
 
       {capMessage ? <p className="hint">{capMessage}</p> : null}
@@ -564,7 +574,7 @@ export default function BulkUploadSection({ wardrobe, palette = [], onAddItem })
             <button
               type="button"
               className="primary"
-              disabled={savingAll || readyCount === 0}
+              disabled={disabled || savingAll || readyCount === 0}
               onClick={saveAllReady}
             >
               {savingAll

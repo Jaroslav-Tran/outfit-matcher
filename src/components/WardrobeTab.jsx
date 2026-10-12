@@ -74,7 +74,7 @@ function ColorSuggestions({ photoColors, palette, hex, onPick }) {
   )
 }
 
-function WardrobeItemCard({ item, open, onToggle, onUpdateItem, onRemoveItem }) {
+function WardrobeItemCard({ item, open, onToggle, onUpdateItem, onRemoveItem, onImageError }) {
   return (
     <li className={`item-card-wrap${open ? ' is-open' : ''}`}>
       <button
@@ -84,7 +84,11 @@ function WardrobeItemCard({ item, open, onToggle, onUpdateItem, onRemoveItem }) 
         onClick={onToggle}
       >
         <div className="item-card-media">
-          <img src={item.imageUrl} alt={item.label || item.category} />
+          <img
+            src={item.imageUrl}
+            alt={item.label || item.category}
+            onError={() => onImageError?.(item.id)}
+          />
           <div className="item-card-scrim" aria-hidden="true" />
         </div>
         <span className="item-card-chevron" aria-hidden="true">
@@ -152,6 +156,8 @@ export default function WardrobeTab({
   onUpdateItem,
   onLoadSample,
   sampleAllowed = false,
+  hydrating = false,
+  onImageError,
 }) {
   const [draft, setDraft] = useState(null)
   const [photoColors, setPhotoColors] = useState([])
@@ -328,7 +334,12 @@ export default function WardrobeTab({
           </p>
         </div>
         {sampleAllowed ? (
-          <button type="button" className="secondary" onClick={onLoadSample}>
+          <button
+            type="button"
+            className="secondary"
+            disabled={hydrating}
+            onClick={onLoadSample}
+          >
             Add sample data
           </button>
         ) : null}
@@ -337,7 +348,13 @@ export default function WardrobeTab({
       <form className="stack form-card" onSubmit={handleAdd}>
         <label className="field">
           <span>Photo (single)</span>
-          <input type="file" accept="image/*" capture="environment" onChange={handleFileChange} />
+          <input
+            type="file"
+            accept="image/*"
+            capture="environment"
+            disabled={hydrating}
+            onChange={handleFileChange}
+          />
         </label>
         {draft?.objectUrl ? (
           <img className="photo-preview" src={draft.objectUrl} alt="Selected garment" />
@@ -453,13 +470,18 @@ export default function WardrobeTab({
         <button
           type="submit"
           className={confirming ? 'primary is-confirming' : 'primary'}
-          disabled={busy || suggesting}
+          disabled={busy || suggesting || hydrating}
         >
-          {busy ? 'Saving…' : confirming ? 'Added ✓' : 'Add item'}
+          {hydrating ? 'Loading…' : busy ? 'Saving…' : confirming ? 'Added ✓' : 'Add item'}
         </button>
       </form>
 
-      <BulkUploadSection wardrobe={wardrobe} palette={palette} onAddItem={onAddItem} />
+      <BulkUploadSection
+        wardrobe={wardrobe}
+        palette={palette}
+        onAddItem={onAddItem}
+        disabled={hydrating}
+      />
 
       <div className="toolbar">
         <label className="field inline">
@@ -499,6 +521,7 @@ export default function WardrobeTab({
                   onToggle={() => setOpenId((current) => (current === item.id ? null : item.id))}
                   onUpdateItem={onUpdateItem}
                   onRemoveItem={onRemoveItem}
+                  onImageError={onImageError}
                 />
               ))}
             </ul>

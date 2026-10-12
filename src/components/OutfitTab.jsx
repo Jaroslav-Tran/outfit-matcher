@@ -40,7 +40,13 @@ function weatherSummary(weather) {
   return `${label} (manual)`
 }
 
-export default function OutfitTab({ wardrobe, palette, onMarkOutfitWorn, hydrating = false }) {
+export default function OutfitTab({
+  wardrobe,
+  palette,
+  onMarkOutfitWorn,
+  hydrating = false,
+  onImageError,
+}) {
   const [formalityFilter, setFormalityFilter] = useState('any')
   const [seasonFilter, setSeasonFilter] = useState('any')
   const [results, setResults] = useState(null)
@@ -264,7 +270,11 @@ export default function OutfitTab({ wardrobe, palette, onMarkOutfitWorn, hydrati
               <ul className="outfit-pieces">
                 {slotItems(outfit).map((item) => (
                   <li key={item.id}>
-                    <img src={item.imageUrl} alt={item.label || item.category} />
+                    <img
+                      src={item.imageUrl}
+                      alt={item.label || item.category}
+                      onError={() => onImageError?.(item.id)}
+                    />
                     <span className="swatch-chip small" style={{ background: item.hex }} />
                     <span>{item.label || item.category}</span>
                     <span className="muted">{fitLabel(item.fit, item)}</span>

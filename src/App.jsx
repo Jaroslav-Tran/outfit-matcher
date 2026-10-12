@@ -23,11 +23,13 @@ import {
   markItemsWorn,
   appendSampleData,
   savePaletteReference,
+  signUrl,
   updateWardrobeItemRow,
 } from './lib/persistence.js'
 import { downloadJson, exportFilename, fetchClosetExport } from './lib/exportCloset.js'
 import { localDateISO } from './lib/outfitGenerator.js'
 import { dedupePaletteColors, normalizePaletteHex, paletteHasHex } from './lib/colorUtils.js'
+import { tryBeginResign, urlsAreStale } from './lib/signedUrlRefresh.js'
 import './App.css'
 
 const TAB_OPTIONS = [
@@ -52,6 +54,8 @@ function App() {
   const wardrobeRef = useRef(wardrobe)
   const sampleLockRef = useRef(false)
   const markWornLockRef = useRef(false)
+  const wardrobeSignedAtRef = useRef(null)
+  const resignAttemptsRef = useRef(new Map())
   wardrobeRef.current = wardrobe
 
   useEffect(() => {
@@ -117,6 +121,8 @@ function App() {
         setPalette(dedupePaletteColors(nextPalette))
         setWardrobe(nextWardrobe)
         setPaletteReferenceUrl(nextReference)
+        wardrobeSignedAtRef.current = Date.now()
+        resignAttemptsRef.current = new Map()
       })
       .catch((error) => {
         if (!cancelled) {
@@ -216,6 +222,53 @@ function App() {
     setPaletteReferenceUrl(url)
     return url
   }
+
+  async function refreshWardrobeItemUrl(itemId) {
+    const item = wardrobeRef.current.find((entry) => entry.id === itemId)
+    if (!item?.imagePath) return
+    if (!tryBeginResign(resignAttemptsRef.current, itemId)) return
+    try {
+      const nextUrl = await signUrl(item.imagePath)
+      setWardrobe((current) =>
+        current.map((entry) => (entry.id === itemId ? { ...entry, imageUrl: nextUrl } : entry)),
+      )
+    } catch (error) {
+      console.warn('Could not refresh signed URL for', itemId, error)
+    }
+  }
+
+  async function refreshStaleWardrobeUrls() {
+    if (!urlsAreStale(wardrobeSignedAtRef.current)) return
+    const items = wardrobeRef.current.filter((entry) => entry.imagePath)
+    if (!items.length) return
+    try {
+      const refreshed = await Promise.all(
+        items.map(async (item) => {
+          if (!tryBeginResign(resignAttemptsRef.current, item.id)) return item
+          try {
+            const imageUrl = await signUrl(item.imagePath)
+            return { ...item, imageUrl }
+          } catch {
+            return item
+          }
+        }),
+      )
+      setWardrobe(refreshed)
+      wardrobeSignedAtRef.current = Date.now()
+    } catch (error) {
+      console.warn('Could not refresh stale signed URLs', error)
+    }
+  }
+
+  useEffect(() => {
+    function onVisibility() {
+      if (document.visibilityState === 'visible') {
+        refreshStaleWardrobeUrls()
+      }
+    }
+    document.addEventListener('visibilitychange', onVisibility)
+    return () => document.removeEventListener('visibilitychange', onVisibility)
+  }, [])
 
   async function addWardrobeItem(item, blob) {
     setPersistError('')
@@ -439,6 +492,8 @@ function App() {
           onUpdateItem={updateWardrobeItem}
           onLoadSample={loadSampleData}
           sampleAllowed={canOfferSampleData(wardrobe, import.meta.env.DEV)}
+          hydrating={hydrating}
+          onImageError={refreshWardrobeItemUrl}
         />
       </div>
       <div hidden={tab !== 'outfit'}>
@@ -446,6 +501,8 @@ function App() {
           wardrobe={wardrobe}
           palette={palette}
           onMarkOutfitWorn={markOutfitWorn}
+          hydrating={hydrating}
+          onImageError={refreshWardrobeItemUrl}
         />
       </div>
     </div>
