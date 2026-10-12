@@ -1,5 +1,53 @@
 # Fix log
 
+## Batch 4 — Hardening and cleanup (2026-10-12)
+
+All audit code findings closed. Ready for Prompt 2.
+
+### Findings
+
+| Finding | Status | Files | Tests | Commit |
+|---------|--------|-------|-------|--------|
+| PRIV-01 | FIXED | `weather.js` | rounded URL params | `38e78cc` |
+| SEC-05 | FIXED | `package-lock.json` | `npm audit` → 0 | `8997d7e` |
+| DATA-06 | FIXED | `constants.js`, `WardrobeTab.jsx` | home once; extras chips | `a1af7dc` |
+| PLAT-01 | FIXED | `index.css` | — | `4e20225` |
+| PLAT-02 | FIXED | `deploy-pages.yml` | SHA pins v4/v3/v4 | `22a7dbd` |
+| PERF-01 | FIXED | `App.jsx` | lazy tabs; entry &lt;500 kB | `d2f1209` |
+| lint | FIXED | `suggestTags.js` | unused `CATEGORIES` removed | `4c3b585` |
+
+### PERF-01 build chunks (after lazy tabs)
+
+| Asset | Size |
+|-------|-----:|
+| `index-*.js` (entry) | ~437 kB |
+| `colorUtils-*.js` | ~53 kB |
+| `WardrobeTab-*.js` | ~24 kB |
+| `OutfitTab` / `PaletteTab` | ~6 kB / ~5 kB |
+
+Vite 500 kB chunk warning **cleared**.
+
+### Checks after Batch 4
+
+```
+npm run test  → 15 files, 89 passed
+npm run lint  → clean
+npm run build → OK; no chunk-size warning
+npm audit     → 0 vulnerabilities
+```
+
+### Deferred
+
+- Owner: `docs/audit/OWNER_ACTIONS.md` (Edge Function redeploy, secrets, refund + MIME migrations, dashboard toggles).
+- LOGIC-01 palette weight options (average / per-item cap / scale) — measured in Batch 2; not implemented until owner picks.
+- Skip for Prompt 2: PWA, service worker, `available` flag.
+
+### Missed by audit / noted while fixing
+
+- `suggestTags.js` lint commit also picked up pre-existing WIP (array categories + warmth/length client parse) that was already in the dirty tree — same class of issue as Batch 1 wardrobe UI bundling.
+
+---
+
 ## Batch 3 — Robustness and error handling (2026-10-12)
 
 Stopped for owner approval before Batch 4.

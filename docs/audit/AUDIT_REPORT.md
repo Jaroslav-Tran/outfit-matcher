@@ -3,7 +3,7 @@
 **Scope:** `outfit-matcher/` (app, `supabase/`, GitHub Actions).  
 **Method:** Static reading + `npm ci` / `build` / `test` / `lint` / `audit` + targeted Node probes (palette ΔE, generator timing).  
 **Date:** 2026-10-09  
-**Batch 1 status:** code fixes committed locally; Edge Function / SQL / bucket MIME require owner actions in `docs/audit/OWNER_ACTIONS.md`.
+**Batch 1–4 status:** all code findings FIXED locally (see Status column + `FIX_LOG.md`). Edge Function / SQL / bucket MIME still require owner actions in `docs/audit/OWNER_ACTIONS.md`. **Ready for Prompt 2** (manual test plan). Skip SW/PWA/`available` (not in product).
 
 ---
 
@@ -132,16 +132,16 @@ XSS sinks (dangerouslySetInnerHTML / innerHTML / document.write) → none in src
 | LOGIC-07 | Medium | CONFIRMED | Docs | scheme boundary at 20° / complementary band | FIXED `4b9f59d` |
 | SEC-03 | Medium | CONFIRMED | Security | rate limit before Claude + error `detail` | FIXED `4099d36` / `f8810ad`; owner must run refund migration + redeploy |
 | SEC-04 | Medium | CONFIRMED | Security | no server enum/label sanitize | FIXED `ee6e24e` |
-| SEC-05 | Medium | CONFIRMED | Supply chain | `npm audit` source-map-js | (Batch 4) |
+| SEC-05 | Medium | CONFIRMED | Supply chain | `npm audit` source-map-js | FIXED `8997d7e` (0 vulns) |
 | ERR-01 | Medium | CONFIRMED | Error handling | no React error boundary | FIXED `bb70dff` |
-| PRIV-01 | Medium | CONFIRMED | Privacy | Open-Meteo full coordinates | (Batch 4) |
+| PRIV-01 | Medium | CONFIRMED | Privacy | Open-Meteo full coordinates | FIXED `38e78cc` |
 | LOOP-02 | Low | CONFIRMED | Logic/UX | `midLayerAppendix` duplicated (neutral-only) | FIXED `7f19685` |
-| DATA-06 | Low | CONFIRMED | Integrity | dual-category items appear in two grid groups | (Batch 4) |
+| DATA-06 | Low | CONFIRMED | Integrity | dual-category items appear in two grid groups | FIXED `a1af7dc` (D6: once + chips) |
 | DATA-07 | Low | LIKELY | Orphans | storage remove error ignored on delete | FIXED `21fd48f` (with DATA-01) |
-| PLAT-01 | Low | CONFIRMED | Platform | `100vh`; inputs OK at 17px | (Batch 4) |
-| PLAT-02 | Low | CONFIRMED | Platform | Actions pinned by tag not SHA | (Batch 4) |
+| PLAT-01 | Low | CONFIRMED | Platform | `100vh`; inputs OK at 17px | FIXED `4e20225` |
+| PLAT-02 | Low | CONFIRMED | Platform | Actions pinned by tag not SHA | FIXED `22a7dbd` |
 | DOC-01 | Low | CONFIRMED | Docs | Descoped list still denies length/warmth | FIXED `4b9f59d` |
-| PERF-01 | Low | CONFIRMED | Perf | single ~514 kB JS chunk | (Batch 4) |
+| PERF-01 | Low | CONFIRMED | Perf | single ~514 kB JS chunk | FIXED `d2f1209` (entry ~437 kB; warning gone) |
 
 ---
 
@@ -502,6 +502,8 @@ Existing tests (39) cover generator formality/layering/weather/recency, bulk lim
 
 **Report path:** `outfit-matcher/docs/audit/AUDIT_REPORT.md`
 
-**Batch 1 to fix first (after your explicit approval):** DATA-01 (photo delete order), SEC-01 (image size), SEC-02 (CORS), SEC-03 (quota/errors), then DATA-02 (sample guardrails).
+**Batches 1–4 complete** (all finding IDs FIXED in Status). Owner still must apply `OWNER_ACTIONS.md` (Edge deploy, refund migration, bucket MIME, dashboard checks).
 
-No source fixes have been applied. Waiting for batch approval before changing code. Prompt 2 (manual test plan) should run **after** approved Batch fixes so scenarios match fixed behavior.
+**Deferred (not code findings):** live Supabase/CLI deploy; LOGIC-01 weight-retune options in FIX_LOG (owner pick); unrelated WIP theme/UI files still dirty in working tree (not part of audit fixes).
+
+**Prompt 2 ready:** write the manual test plan against post-fix behavior. Do **not** include PWA, service worker, or `available` flag scenarios (out of product scope).
