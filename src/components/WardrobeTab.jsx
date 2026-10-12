@@ -20,7 +20,9 @@ import {
   LENGTHS,
   SEASONS,
   WARMTHS,
+  extraCategories,
   fitLabel,
+  homeCategory,
   itemHasCategory,
   normalizeCategories,
   primaryCategory,
@@ -75,6 +77,8 @@ function ColorSuggestions({ photoColors, palette, hex, onPick }) {
 }
 
 function WardrobeItemCard({ item, open, onToggle, onUpdateItem, onRemoveItem, onImageError }) {
+  const home = homeCategory(item)
+  const extras = extraCategories(item)
   return (
     <li className={`item-card-wrap${open ? ' is-open' : ''}`}>
       <button
@@ -98,8 +102,13 @@ function WardrobeItemCard({ item, open, onToggle, onUpdateItem, onRemoveItem, on
           <div className="item-card-tags">
             <span className="frost-pill">
               <span className="swatch-chip small" style={{ background: item.hex }} title={item.hex} />
-              {normalizeCategories(item.category).join(' · ')} · {item.formality}
+              {home} · {item.formality}
             </span>
+            {extras.map((role) => (
+              <span key={role} className="frost-pill role-chip">
+                also {role}
+              </span>
+            ))}
             <span className="frost-pill">{fitLabel(item.fit, item)}</span>
             {(item.seasons || []).slice(0, 2).map((season) => (
               <span key={season} className="frost-pill">
@@ -314,9 +323,10 @@ export default function WardrobeTab({
       ? wardrobe
       : wardrobe.filter((item) => itemHasCategory(item, categoryFilter))
 
+  // DATA-06: each item appears once under its first category; other roles are chips.
   const grouped = CATEGORIES.map((cat) => ({
     category: cat,
-    items: visible.filter((item) => itemHasCategory(item, cat)),
+    items: visible.filter((item) => homeCategory(item) === cat),
   })).filter((group) => group.items.length > 0)
 
   const fitCategory = primaryCategory({ category: categories })
