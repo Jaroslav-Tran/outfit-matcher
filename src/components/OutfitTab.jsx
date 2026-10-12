@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import SegmentedControl from './SegmentedControl.jsx'
-import { generateOutfits, localDateISO } from '../lib/outfitGenerator.js'
+import { generateOutfitsAsync, localDateISO } from '../lib/outfitGenerator.js'
 import { SCHEME_LABELS } from '../lib/colorUtils.js'
 import { FORMALITIES, SEASONS, fitLabel } from '../lib/constants.js'
 import {
@@ -40,7 +40,7 @@ function weatherSummary(weather) {
   return `${label} (manual)`
 }
 
-export default function OutfitTab({ wardrobe, palette, onMarkOutfitWorn }) {
+export default function OutfitTab({ wardrobe, palette, onMarkOutfitWorn, hydrating = false }) {
   const [formalityFilter, setFormalityFilter] = useState('any')
   const [seasonFilter, setSeasonFilter] = useState('any')
   const [results, setResults] = useState(null)
@@ -49,11 +49,20 @@ export default function OutfitTab({ wardrobe, palette, onMarkOutfitWorn }) {
   const [weather, setWeather] = useState(null)
   const [weatherBusy, setWeatherBusy] = useState(false)
   const [weatherHint, setWeatherHint] = useState('')
+  const [generating, setGenerating] = useState(false)
+  const abortRef = useRef(null)
+  const runIdRef = useRef(0)
 
   useEffect(() => {
     setResults(null)
     setMarkNotice('')
   }, [palette, formalityFilter, seasonFilter, weather])
+
+  useEffect(() => {
+    return () => {
+      abortRef.current?.abort()
+    }
+  }, [])
 
   async function handleUseLocation() {
     setWeatherBusy(true)
@@ -73,17 +82,35 @@ export default function OutfitTab({ wardrobe, palette, onMarkOutfitWorn }) {
     setWeatherHint('')
   }
 
-  function handleGenerate(event) {
+  async function handleGenerate(event) {
     event.preventDefault()
+    if (hydrating) return
+
+    // Second click cancels the in-flight run, then starts a new one.
+    abortRef.current?.abort()
+    const controller = new AbortController()
+    abortRef.current = controller
+    const runId = ++runIdRef.current
+
     setMarkNotice('')
-    const outfits = generateOutfits(
-      wardrobe,
-      palette,
-      formalityFilter,
-      seasonFilter,
-      weather?.seasons || null,
-    )
-    setResults(outfits)
+    setGenerating(true)
+    try {
+      const outfits = await generateOutfitsAsync(
+        wardrobe,
+        palette,
+        formalityFilter,
+        seasonFilter,
+        weather?.seasons || null,
+        { signal: controller.signal },
+      )
+      if (runId !== runIdRef.current || controller.signal.aborted) return
+      setResults(outfits)
+    } catch (error) {
+      if (error?.name === 'AbortError') return
+      throw error
+    } finally {
+      if (runId === runIdRef.current) setGenerating(false)
+    }
   }
 
   async function handleMarkWorn(outfit) {
@@ -146,7 +173,7 @@ export default function OutfitTab({ wardrobe, palette, onMarkOutfitWorn }) {
           <button
             type="button"
             className="secondary"
-            disabled={weatherBusy}
+            disabled={weatherBusy || hydrating || generating}
             onClick={handleUseLocation}
           >
             {weatherBusy ? 'Checking weather…' : 'Use my location'}
@@ -157,6 +184,7 @@ export default function OutfitTab({ wardrobe, palette, onMarkOutfitWorn }) {
               type="button"
               className={manualBand === band ? 'secondary is-selected' : 'secondary'}
               aria-pressed={manualBand === band}
+              disabled={hydrating || generating}
               onClick={() => handleManualBand(band)}
             >
               {TEMP_BANDS[band].label}
@@ -198,14 +226,18 @@ export default function OutfitTab({ wardrobe, palette, onMarkOutfitWorn }) {
             onChange={setSeasonFilter}
           />
         </div>
-        <button type="submit" className="primary">
-          Generate
+        <button type="submit" className="primary" disabled={hydrating}>
+          {generating ? 'Generating…' : hydrating ? 'Loading…' : 'Generate'}
         </button>
       </form>
 
       {markNotice ? <p className="hint">{markNotice}</p> : null}
 
-      {results === null ? (
+      {hydrating ? (
+        <p className="empty">Loading your wardrobe…</p>
+      ) : generating ? (
+        <p className="empty">Generating…</p>
+      ) : results === null ? (
         <p className="empty">Choose filters and click Generate.</p>
       ) : results.length === 0 ? (
         <p className="empty notice">
@@ -246,7 +278,7 @@ export default function OutfitTab({ wardrobe, palette, onMarkOutfitWorn }) {
               <button
                 type="button"
                 className="secondary"
-                disabled={markingScheme === outfit.colorScheme}
+                disabled={markingScheme === outfit.colorScheme || generating}
                 onClick={() => handleMarkWorn(outfit)}
               >
                 {markingScheme === outfit.colorScheme ? 'Saving…' : 'Mark as worn'}

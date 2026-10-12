@@ -17,6 +17,7 @@ import {
   outerwearFormalityAllowed,
   palettePointsForItem,
   passesFormalityFilter,
+  planEnumerationLimits,
   rawCombinationCount,
   recencyPenalty,
 } from './outfitGenerator.js'
@@ -76,7 +77,7 @@ describe('generateOutfits', () => {
     expect(countDistinctNonNeutralColors(items)).toBe(1)
   })
 
-  it('restricts accessory subsets when raw combinations exceed the cap', () => {
+  it('restricts accessory subsets when pruned estimate exceeds the cap', () => {
     const wardrobe = []
     for (let i = 0; i < 5; i += 1) {
       wardrobe.push(item({ id: `top-${i}`, hex: '#808080', category: 'top', isNeutral: true }))
@@ -89,7 +90,6 @@ describe('generateOutfits', () => {
       )
     }
     expect(rawCombinationCount(wardrobe, 2)).toBeGreaterThan(MAX_COMBINATIONS)
-    expect(rawCombinationCount(wardrobe, 1)).toBeLessThanOrEqual(MAX_COMBINATIONS)
     const outfits = generateOutfits(wardrobe, palette)
     expect(Array.isArray(outfits)).toBe(true)
     expect(outfits.every((look) => look.accessories.length <= 1)).toBe(true)
@@ -353,5 +353,102 @@ describe('LOGIC-01 palette score includes neutrals', () => {
     )
     expect(black.isNeutral).toBe(true)
     expect(palettePointsForItem(black)).toBeLessThan(1)
+  })
+})
+
+describe('LOOP-01 pruned enumeration', () => {
+  it('still finds the only valid outfit when it uses last-added items on an over-cap closet', () => {
+    const wardrobe = []
+    // Many formal pieces first (no complete formal set — missing formal shoes).
+    for (let i = 0; i < 40; i += 1) {
+      wardrobe.push(
+        item({
+          id: `formal-top-${i}`,
+          hex: '#808080',
+          category: 'top',
+          isNeutral: true,
+          formality: 'formal',
+        }),
+      )
+      wardrobe.push(
+        item({
+          id: `formal-bottom-${i}`,
+          hex: '#808080',
+          category: 'bottom',
+          isNeutral: true,
+          formality: 'formal',
+        }),
+      )
+    }
+    // Only valid casual outfit, appended last.
+    wardrobe.push(
+      item({
+        id: 'late-top',
+        hex: '#4D648F',
+        category: 'top',
+        isNeutral: false,
+        formality: 'casual',
+        label: 'late-top',
+      }),
+    )
+    wardrobe.push(
+      item({
+        id: 'late-bottom',
+        hex: '#808080',
+        category: 'bottom',
+        isNeutral: true,
+        formality: 'casual',
+        label: 'late-bottom',
+      }),
+    )
+    wardrobe.push(
+      item({
+        id: 'late-shoes',
+        hex: '#808080',
+        category: 'shoes',
+        isNeutral: true,
+        formality: 'casual',
+        label: 'late-shoes',
+      }),
+    )
+
+    expect(rawCombinationCount(wardrobe, 2)).toBeGreaterThan(0)
+    const outfits = generateOutfits(wardrobe, palette, 'casual')
+    expect(outfits.length).toBeGreaterThan(0)
+    expect(outfits.some((look) => look.top.id === 'late-top')).toBe(true)
+  })
+
+  it('returns identical best outfits regardless of wardrobe array order', () => {
+    const base = [
+      item({ id: 't1', hex: '#4D648F', category: 'top', isNeutral: false }),
+      item({ id: 't2', hex: '#e74c3c', category: 'top', isNeutral: false }),
+      item({ id: 'b1', hex: '#808080', category: 'bottom', isNeutral: true }),
+      item({ id: 'b2', hex: '#808080', category: 'bottom', isNeutral: true }),
+      item({ id: 's1', hex: '#808080', category: 'shoes', isNeutral: true }),
+      item({ id: 's2', hex: '#808080', category: 'shoes', isNeutral: true }),
+      item({ id: 'a1', hex: '#808080', category: 'accessory', isNeutral: true }),
+    ]
+    const reversed = [...base].reverse()
+    const a = generateOutfits(base, palette)
+    const b = generateOutfits(reversed, palette)
+    expect(a.map((o) => `${o.colorScheme}:${o.top.id}:${o.bottom.id}:${o.shoes.id}:${o.score}`)).toEqual(
+      b.map((o) => `${o.colorScheme}:${o.top.id}:${o.bottom.id}:${o.shoes.id}:${o.score}`),
+    )
+  })
+
+  it('matches unpruned best result on a small closet', () => {
+    const wardrobe = [
+      item({ id: 't1', hex: '#4D648F', category: 'top', isNeutral: false }),
+      item({ id: 'b1', hex: '#808080', category: 'bottom', isNeutral: true }),
+      item({ id: 's1', hex: '#808080', category: 'shoes', isNeutral: true }),
+      item({ id: 'a1', hex: '#808080', category: 'accessory', isNeutral: true }),
+    ]
+    const limits = planEnumerationLimits(wardrobe, 'any')
+    expect(limits.estimated).toBeLessThanOrEqual(MAX_COMBINATIONS)
+    expect(limits.maxAccessories).toBe(2)
+    expect(limits.topK).toBeNull()
+    const outfits = generateOutfits(wardrobe, palette)
+    expect(outfits.length).toBeGreaterThan(0)
+    expect(outfits[0].top.id).toBe('t1')
   })
 })

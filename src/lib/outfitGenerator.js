@@ -141,47 +141,217 @@ export function outerwearFormalityAllowed(topFormality, outerFormality) {
   return outer >= top && outer <= top + 1
 }
 
-function enumerateCandidates(wardrobe, maxAccessories, cap) {
-  const tops = byCategory(wardrobe, 'top')
-  const bottoms = byCategory(wardrobe, 'bottom')
-  const shoes = byCategory(wardrobe, 'shoes')
-  const midLayers = byCategory(wardrobe, 'mid-layer')
-  const outerwear = byCategory(wardrobe, 'outerwear')
-  const accessories = byCategory(wardrobe, 'accessory')
-  const midLayerOptions = [null, ...midLayers]
-  const outerwearOptions = [null, ...outerwear]
-  const accSubsets = accessorySubsets(accessories, maxAccessories)
+/** Sort by palette closeness desc, stable id asc — never by wardrobe array order. */
+export function rankItemsByPalette(items) {
+  return [...(items || [])].sort((a, b) => {
+    const diff = palettePointsForItem(b) - palettePointsForItem(a)
+    if (diff !== 0) return diff
+    return String(a.id).localeCompare(String(b.id))
+  })
+}
 
-  const combos = []
-  for (const top of tops) {
-    for (const bottom of bottoms) {
-      for (const shoe of shoes) {
-        for (const mid of midLayerOptions) {
-          for (const outer of outerwearOptions) {
-            for (const accs of accSubsets) {
-              if (combos.length >= cap) return combos
-              const combo = {
-                top,
-                bottom,
-                shoes: shoe,
-                midLayer: mid,
-                outerwear: outer,
-                accessories: accs,
+export function takeTopKByPalette(items, k) {
+  if (k == null || k >= (items?.length || 0)) return items || []
+  return rankItemsByPalette(items).slice(0, k)
+}
+
+function filterSeason(items, seasonFilter) {
+  if (!seasonFilter || seasonFilter === 'any') return items
+  return items.filter((item) => itemFitsSeason(item, seasonFilter))
+}
+
+/**
+ * Incremental non-neutral color budget using union-find (LOGIC-06).
+ * Returns false if adding `item` would exceed 2 distinct non-neutral colors.
+ */
+export function colorBudgetAllows(existingItems, item) {
+  return distinctNonNeutralHexes([...(existingItems || []), item].filter(Boolean)).length <= 2
+}
+
+function idsConflict(usedIds, item) {
+  return item && usedIds.has(item.id)
+}
+
+/**
+ * Estimate pruned combo space for one formality tier (after season filter).
+ */
+export function estimatePrunedCountForTier(pools, maxAccessories) {
+  const { tops, bottoms, shoes, midLayers, outerwear, accessories } = pools
+  if (!tops.length || !bottoms.length || !shoes.length) return 0
+  return (
+    tops.length *
+    bottoms.length *
+    shoes.length *
+    (midLayers.length + 1) *
+    (outerwear.length + 1) *
+    accessorySubsetCount(accessories.length, maxAccessories)
+  )
+}
+
+function poolsForTier(wardrobe, tier) {
+  const tops = byCategory(wardrobe, 'top').filter((item) => item.formality === tier)
+  const bottoms = byCategory(wardrobe, 'bottom').filter((item) => item.formality === tier)
+  const shoes = byCategory(wardrobe, 'shoes').filter((item) => item.formality === tier)
+  const midLayers = byCategory(wardrobe, 'mid-layer').filter((item) => item.formality === tier)
+  const accessories = byCategory(wardrobe, 'accessory').filter((item) => item.formality === tier)
+  const outerwear = byCategory(wardrobe, 'outerwear').filter((item) =>
+    outerwearFormalityAllowed(tier, item.formality),
+  )
+  return { tops, bottoms, shoes, midLayers, outerwear, accessories }
+}
+
+/**
+ * Choose maxAccessories and optional per-slot K so estimated space ≤ cap.
+ * Prefers reducing accessories 2→1→0 before top-K. Never truncates by iteration order.
+ */
+export function planEnumerationLimits(wardrobe, formalityFilter, cap = MAX_COMBINATIONS) {
+  const tiers =
+    formalityFilter && formalityFilter !== 'any'
+      ? [formalityFilter]
+      : ['casual', 'smart-casual', 'formal']
+
+  for (const maxAccessories of [2, 1, 0]) {
+    let total = 0
+    for (const tier of tiers) {
+      total += estimatePrunedCountForTier(poolsForTier(wardrobe, tier), maxAccessories)
+    }
+    if (total <= cap) {
+      return { maxAccessories, topK: null, estimated: total }
+    }
+  }
+
+  // Still over: shrink each slot to top-K by palette score until under cap.
+  for (let k = 12; k >= 1; k -= 1) {
+    let total = 0
+    for (const tier of tiers) {
+      const pools = poolsForTier(wardrobe, tier)
+      const shrunk = {
+        tops: takeTopKByPalette(pools.tops, k),
+        bottoms: takeTopKByPalette(pools.bottoms, k),
+        shoes: takeTopKByPalette(pools.shoes, k),
+        midLayers: takeTopKByPalette(pools.midLayers, k),
+        outerwear: takeTopKByPalette(pools.outerwear, k),
+        accessories: takeTopKByPalette(pools.accessories, k),
+      }
+      total += estimatePrunedCountForTier(shrunk, 0)
+    }
+    if (total <= cap) {
+      return { maxAccessories: 0, topK: k, estimated: total }
+    }
+  }
+
+  return { maxAccessories: 0, topK: 1, estimated: tiers.length }
+}
+
+/**
+ * Constraint-pruned DFS. Calls `visit(combo)` for each complete combo.
+ * Returns number of combos visited. Stops early if visit returns false or cap hit.
+ */
+export function forEachPrunedCombo(
+  wardrobe,
+  formalityFilter = 'any',
+  visit,
+  { maxAccessories = 2, topK = null, cap = MAX_COMBINATIONS } = {},
+) {
+  const tiers =
+    formalityFilter && formalityFilter !== 'any'
+      ? [formalityFilter]
+      : ['casual', 'smart-casual', 'formal']
+
+  let produced = 0
+
+  for (const tier of tiers) {
+    let pools = poolsForTier(wardrobe, tier)
+    if (topK != null) {
+      pools = {
+        tops: takeTopKByPalette(pools.tops, topK),
+        bottoms: takeTopKByPalette(pools.bottoms, topK),
+        shoes: takeTopKByPalette(pools.shoes, topK),
+        midLayers: takeTopKByPalette(pools.midLayers, topK),
+        outerwear: takeTopKByPalette(pools.outerwear, topK),
+        accessories: takeTopKByPalette(pools.accessories, topK),
+      }
+    } else {
+      pools = {
+        tops: rankItemsByPalette(pools.tops),
+        bottoms: rankItemsByPalette(pools.bottoms),
+        shoes: rankItemsByPalette(pools.shoes),
+        midLayers: rankItemsByPalette(pools.midLayers),
+        outerwear: rankItemsByPalette(pools.outerwear),
+        accessories: rankItemsByPalette(pools.accessories),
+      }
+    }
+
+    const midOptions = [null, ...pools.midLayers]
+    const outerOptions = [null, ...pools.outerwear]
+    const accSubsets = accessorySubsets(pools.accessories, maxAccessories)
+
+    for (const top of pools.tops) {
+      for (const bottom of pools.bottoms) {
+        if (bottom.id === top.id) continue
+        if (!colorBudgetAllows([top], bottom)) continue
+        for (const shoe of pools.shoes) {
+          if (idsConflict(new Set([top.id, bottom.id]), shoe)) continue
+          if (!colorBudgetAllows([top, bottom], shoe)) continue
+          for (const mid of midOptions) {
+            if (idsConflict(new Set([top.id, bottom.id, shoe.id]), mid)) continue
+            if (mid && !colorBudgetAllows([top, bottom, shoe], mid)) continue
+            for (const outer of outerOptions) {
+              const used = new Set([top.id, bottom.id, shoe.id, mid?.id].filter(Boolean))
+              if (idsConflict(used, outer)) continue
+              if (
+                outer &&
+                !colorBudgetAllows([top, bottom, shoe, mid].filter(Boolean), outer)
+              ) {
+                continue
               }
-              if (comboHasDuplicateSlots(combo)) continue
-              const items = [top, bottom, shoe]
-              if (mid) items.push(mid)
-              if (outer) items.push(outer)
-              items.push(...accs)
-              combo.items = items
-              combos.push(combo)
+              for (const accs of accSubsets) {
+                if (produced >= cap) return produced
+
+                const combo = {
+                  top,
+                  bottom,
+                  shoes: shoe,
+                  midLayer: mid,
+                  outerwear: outer,
+                  accessories: accs,
+                }
+                if (comboHasDuplicateSlots(combo)) continue
+
+                let ok = true
+                const built = [top, bottom, shoe]
+                if (mid) built.push(mid)
+                if (outer) built.push(outer)
+                for (const acc of accs) {
+                  if (!colorBudgetAllows(built, acc)) {
+                    ok = false
+                    break
+                  }
+                  built.push(acc)
+                }
+                if (!ok) continue
+                if (distinctNonNeutralHexes(built).length > 2) continue
+
+                combo.items = built
+                produced += 1
+                if (visit(combo) === false) return produced
+                if (produced >= cap) return produced
+              }
             }
           }
         }
       }
     }
   }
-  return combos
+  return produced
+}
+
+async function yieldToEventLoop() {
+  if (typeof globalThis.scheduler?.yield === 'function') {
+    await globalThis.scheduler.yield()
+  } else {
+    await new Promise((resolve) => setTimeout(resolve, 0))
+  }
 }
 
 function comboFormality(combo) {
@@ -466,66 +636,7 @@ function comboKey(combo) {
     .join('|')
 }
 
-export function generateOutfits(
-  wardrobe,
-  palette,
-  formalityFilter = 'any',
-  seasonFilter = 'any',
-  weatherSeasons = null,
-) {
-  if (!wardrobe?.length) return []
-
-  const missingRequired = REQUIRED_SLOT_CATEGORIES.some(
-    (category) => byCategory(wardrobe, category).length === 0,
-  )
-  if (missingRequired) return []
-
-  const annotated = annotateWardrobeWithPalette(wardrobe, palette || [])
-
-  let maxAccessories = 2
-  const rawWithTwo = rawCombinationCount(annotated, 2)
-  if (rawWithTwo > MAX_COMBINATIONS) {
-    maxAccessories = 1
-    console.warn(
-      'Outfit enumeration cap: restricting accessory subsets to 0–1 (raw combination count would exceed 50,000).',
-    )
-    const rawWithOne = rawCombinationCount(annotated, 1)
-    if (rawWithOne > MAX_COMBINATIONS) {
-      console.warn(
-        'Outfit enumeration cap: still exceeding 50,000 combinations after accessory restriction; truncating enumeration at 50,000.',
-      )
-    }
-  }
-
-  const candidates = enumerateCandidates(annotated, maxAccessories, MAX_COMBINATIONS)
-  const activeWeatherSeasons = weatherSeasons?.length ? weatherSeasons : null
-
-  const scored = []
-  for (const combo of candidates) {
-    if (!passesFormalityFilter(combo, formalityFilter)) continue
-    if (!passesSeasonFilter(combo, seasonFilter)) continue
-
-    const nonNeutralHexes = distinctNonNeutralHexes(combo.items)
-    if (nonNeutralHexes.length > 2) continue
-    const colorScheme = detectColorScheme(nonNeutralHexes)
-    if (colorScheme === 'unclassified') continue
-
-    const { score, fit } = scoreCombo(combo, activeWeatherSeasons)
-    scored.push({
-      items: combo.items,
-      top: combo.top,
-      bottom: combo.bottom,
-      shoes: combo.shoes,
-      midLayer: combo.midLayer,
-      outerwear: combo.outerwear,
-      accessories: combo.accessories,
-      formality: comboFormality(combo),
-      colorScheme,
-      score,
-      explanation: buildExplanation(combo, colorScheme, fit),
-    })
-  }
-
+function finalizeOutfits(scored) {
   const seen = new Set()
   const unique = []
   for (const outfit of scored) {
@@ -544,4 +655,224 @@ export function generateOutfits(
   }
 
   return SCHEME_ORDER.map((scheme) => bestByScheme[scheme]).filter(Boolean)
+}
+
+function scoreVisitedCombo(combo, weatherSeasons) {
+  const nonNeutralHexes = distinctNonNeutralHexes(combo.items)
+  if (nonNeutralHexes.length > 2) return null
+  const colorScheme = detectColorScheme(nonNeutralHexes)
+  if (colorScheme === 'unclassified') return null
+  const { score, fit } = scoreCombo(combo, weatherSeasons)
+  return {
+    items: combo.items,
+    top: combo.top,
+    bottom: combo.bottom,
+    shoes: combo.shoes,
+    midLayer: combo.midLayer,
+    outerwear: combo.outerwear,
+    accessories: combo.accessories,
+    formality: comboFormality(combo),
+    colorScheme,
+    score,
+    explanation: buildExplanation(combo, colorScheme, fit),
+  }
+}
+
+/**
+ * Sync pruned generate (unit tests). Season filter applied before enumeration.
+ */
+export function generateOutfits(
+  wardrobe,
+  palette,
+  formalityFilter = 'any',
+  seasonFilter = 'any',
+  weatherSeasons = null,
+) {
+  if (!wardrobe?.length) return []
+
+  const seasonFiltered = filterSeason(wardrobe, seasonFilter)
+  const missingRequired = REQUIRED_SLOT_CATEGORIES.some(
+    (category) => byCategory(seasonFiltered, category).length === 0,
+  )
+  if (missingRequired) return []
+
+  const annotated = annotateWardrobeWithPalette(seasonFiltered, palette || [])
+  const limits = planEnumerationLimits(annotated, formalityFilter, MAX_COMBINATIONS)
+  if (limits.topK != null) {
+    console.warn(
+      `Outfit enumeration: accessories=0, top-K=${limits.topK} per slot (pruned estimate ${limits.estimated}).`,
+    )
+  } else if (limits.maxAccessories < 2) {
+    console.warn(
+      `Outfit enumeration: accessory subsets limited to 0–${limits.maxAccessories} (pruned estimate ${limits.estimated}).`,
+    )
+  }
+
+  const activeWeatherSeasons = weatherSeasons?.length ? weatherSeasons : null
+  const scored = []
+  forEachPrunedCombo(
+    annotated,
+    formalityFilter,
+    (combo) => {
+      // Season already applied to pools; keep defensive check for empty-season items.
+      if (!passesSeasonFilter(combo, seasonFilter)) return undefined
+      if (!passesFormalityFilter(combo, formalityFilter)) return undefined
+      const outfit = scoreVisitedCombo(combo, activeWeatherSeasons)
+      if (outfit) scored.push(outfit)
+      return undefined
+    },
+    limits,
+  )
+
+  return finalizeOutfits(scored)
+}
+
+/**
+ * Same pruned walk as forEachPrunedCombo, but awaits the event loop every `yieldEvery` leaves.
+ */
+export async function forEachPrunedComboAsync(
+  wardrobe,
+  formalityFilter,
+  visit,
+  { maxAccessories = 2, topK = null, cap = MAX_COMBINATIONS, yieldEvery = 2000, signal = null } = {},
+) {
+  const tiers =
+    formalityFilter && formalityFilter !== 'any'
+      ? [formalityFilter]
+      : ['casual', 'smart-casual', 'formal']
+
+  let produced = 0
+  let steps = 0
+
+  for (const tier of tiers) {
+    let pools = poolsForTier(wardrobe, tier)
+    if (topK != null) {
+      pools = {
+        tops: takeTopKByPalette(pools.tops, topK),
+        bottoms: takeTopKByPalette(pools.bottoms, topK),
+        shoes: takeTopKByPalette(pools.shoes, topK),
+        midLayers: takeTopKByPalette(pools.midLayers, topK),
+        outerwear: takeTopKByPalette(pools.outerwear, topK),
+        accessories: takeTopKByPalette(pools.accessories, topK),
+      }
+    } else {
+      pools = {
+        tops: rankItemsByPalette(pools.tops),
+        bottoms: rankItemsByPalette(pools.bottoms),
+        shoes: rankItemsByPalette(pools.shoes),
+        midLayers: rankItemsByPalette(pools.midLayers),
+        outerwear: rankItemsByPalette(pools.outerwear),
+        accessories: rankItemsByPalette(pools.accessories),
+      }
+    }
+
+    const midOptions = [null, ...pools.midLayers]
+    const outerOptions = [null, ...pools.outerwear]
+    const accSubsets = accessorySubsets(pools.accessories, maxAccessories)
+
+    for (const top of pools.tops) {
+      for (const bottom of pools.bottoms) {
+        if (bottom.id === top.id) continue
+        if (!colorBudgetAllows([top], bottom)) continue
+        for (const shoe of pools.shoes) {
+          if (idsConflict(new Set([top.id, bottom.id]), shoe)) continue
+          if (!colorBudgetAllows([top, bottom], shoe)) continue
+          for (const mid of midOptions) {
+            if (idsConflict(new Set([top.id, bottom.id, shoe.id]), mid)) continue
+            if (mid && !colorBudgetAllows([top, bottom, shoe], mid)) continue
+            for (const outer of outerOptions) {
+              const used = new Set([top.id, bottom.id, shoe.id, mid?.id].filter(Boolean))
+              if (idsConflict(used, outer)) continue
+              if (
+                outer &&
+                !colorBudgetAllows([top, bottom, shoe, mid].filter(Boolean), outer)
+              ) {
+                continue
+              }
+              for (const accs of accSubsets) {
+                if (signal?.aborted) throw new DOMException('Aborted', 'AbortError')
+                if (produced >= cap) return produced
+
+                steps += 1
+                if (yieldEvery > 0 && steps % yieldEvery === 0) {
+                  await yieldToEventLoop()
+                  if (signal?.aborted) throw new DOMException('Aborted', 'AbortError')
+                }
+
+                const combo = {
+                  top,
+                  bottom,
+                  shoes: shoe,
+                  midLayer: mid,
+                  outerwear: outer,
+                  accessories: accs,
+                }
+                if (comboHasDuplicateSlots(combo)) continue
+
+                let ok = true
+                const built = [top, bottom, shoe]
+                if (mid) built.push(mid)
+                if (outer) built.push(outer)
+                for (const acc of accs) {
+                  if (!colorBudgetAllows(built, acc)) {
+                    ok = false
+                    break
+                  }
+                  built.push(acc)
+                }
+                if (!ok) continue
+                if (distinctNonNeutralHexes(built).length > 2) continue
+
+                combo.items = built
+                produced += 1
+                if (visit(combo) === false) return produced
+                if (produced >= cap) return produced
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  return produced
+}
+
+/**
+ * Async pruned generate with event-loop yields (UI). Supports AbortSignal.
+ */
+export async function generateOutfitsAsync(
+  wardrobe,
+  palette,
+  formalityFilter = 'any',
+  seasonFilter = 'any',
+  weatherSeasons = null,
+  { signal = null, yieldEvery = 2000 } = {},
+) {
+  if (!wardrobe?.length) return []
+
+  const seasonFiltered = filterSeason(wardrobe, seasonFilter)
+  const missingRequired = REQUIRED_SLOT_CATEGORIES.some(
+    (category) => byCategory(seasonFiltered, category).length === 0,
+  )
+  if (missingRequired) return []
+
+  const annotated = annotateWardrobeWithPalette(seasonFiltered, palette || [])
+  const limits = planEnumerationLimits(annotated, formalityFilter, MAX_COMBINATIONS)
+  const activeWeatherSeasons = weatherSeasons?.length ? weatherSeasons : null
+  const scored = []
+
+  await forEachPrunedComboAsync(
+    annotated,
+    formalityFilter,
+    (combo) => {
+      if (!passesSeasonFilter(combo, seasonFilter)) return undefined
+      if (!passesFormalityFilter(combo, formalityFilter)) return undefined
+      const outfit = scoreVisitedCombo(combo, activeWeatherSeasons)
+      if (outfit) scored.push(outfit)
+      return undefined
+    },
+    { ...limits, yieldEvery, signal },
+  )
+
+  return finalizeOutfits(scored)
 }
