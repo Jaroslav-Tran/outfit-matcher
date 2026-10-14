@@ -17,13 +17,13 @@ Your seasonal / personal color analysis is the reference set outfits are scored 
 
 Each piece is a photo plus tags. React state is the UI source of truth; Supabase is the durable store.
 
-- **Photo.** Resized to ~500px on the long edge (JPEG) and stored in the private `wardrobe` bucket. Signed URLs are created at load time. `blob:` URLs are not persisted.
+- **Photo.** JPEG, PNG, WebP, or HEIC/HEIF (converted in-browser to JPEG). Resized to ~500px on the long edge and stored in the private `wardrobe` bucket. Signed URLs are created at load time. `blob:` URLs are not persisted.
 - **Color from the photo.** Dominant colors are clustered from the center of the image (margins skipped so a bedsheet background is less likely to win). Up to four distinct colors are shown. **One hero hex is saved** — that is the color outfits see.
 - **Snap to your analysis.** If a palette exists and the closest analysis color is within **ΔE 18** of the dominant photo color, that palette hex is auto-selected. You can tap any extracted photo swatch or any palette swatch instead.
 - **Neutral.** Suggested when the hero hex is within ΔE 12 of a hardcoded neutral list (black, white, greys, navy, beige, tan, brown, olive, charcoal). The checkbox stays editable.
-- **Tags.** Category, formality, fit, seasons, and label can be filled by Claude vision (`suggest-garment` Edge Function) when it is deployed. Hex is never asked of Claude. Every field is editable before save.
+- **Tags.** Category, formality, fit, warmth, length, seasons, Neutral, and label can be filled by Claude vision (`suggest-garment` Edge Function) when it is deployed. Hex is never asked of Claude. Every field is editable before save, and again from the expanded wardrobe card (**Save changes**).
 - **Fit labels.** `fitted` / `regular` / `relaxed`. Shoes display as sleek/low-profile, standard, chunky/platform. Missing fit defaults to `regular`.
-- **Bulk upload.** Separate from the single-item camera form. Pick up to **20** library photos (`multiple`, no `capture`). Each file becomes a pending card (queued → processing → ready → saved, or failed / excluded). Resize + local color run without a concurrency cap; Claude tag calls are limited to **2 at a time**. A mid-batch daily quota (429) stops further AI calls and leaves remaining cards ready for manual tags. Soft duplicate nudge (same category, ΔE under 8) vs saved wardrobe and earlier cards in the batch. Per-card Save plus **Save all remaining ready items**. Pending cards are session-only until saved.
+- **Bulk upload.** Separate from the single-item camera form. Pick up to **20** library photos (`multiple`, no `capture`). Each file becomes a short review row (photo, color, hex, label, category, formality). Open the row to edit every tag. Resize + local color run without a concurrency cap; Claude tag calls are limited to **2 at a time**. A mid-batch daily quota (429) stops further AI calls and leaves remaining rows ready for manual tags. Soft duplicate nudge (same category, ΔE under 8) vs saved wardrobe and earlier rows in the batch. Per-row Save plus **Save all remaining ready items**. Unsaved rows are kept in this browser and come back after a reload until they are saved or you start a new batch. A pick larger than 20 shows a red note and a popup naming how many were left out.
 
 ### Multi-colored clothes
 
@@ -68,7 +68,7 @@ The UI shows the **single best-scoring outfit per scheme** (up to 4), in a fixed
 
 ### Mark as worn
 
-Each generated outfit card has **Mark as worn**. That sets `last_worn` to today’s **local** calendar date (`YYYY-MM-DD`) on every piece in the look (one Supabase update for those ids). Only the latest wear date is stored — not a full history. Marking the same outfit twice in one day is fine (same date rewritten). On **My Wardrobe**, each item shows last worn and **Clear worn date** if you marked by mistake.
+Each generated outfit card has **Mark as worn**. That sets `last_worn` to today’s **local** calendar date (`YYYY-MM-DD`) on every piece in the look (one Supabase update for those ids). Only the latest wear date is stored — not a full history. Marking the same outfit twice in one day is fine (same date rewritten). On **My Wardrobe**, open an item and use **Mark as worn** for that piece alone. The card shows the date, hides the button once it is already today, and offers **Clear worn date** if you marked by mistake.
 
 Requires the column migration once: paste `supabase/migration_last_worn.sql` in the SQL Editor.
 
@@ -108,9 +108,9 @@ If a shoe “matches,” it means: same formality, in-season, and the outfit sti
 
 ### Persistence and accounts
 
-`palette` and `wardrobe` live in `useState` in `App.jsx`. Tabs stay mounted. Signed-in writes go to Supabase (`palette_colors`, `wardrobe_items`, Storage). Row Level Security limits rows to `auth.uid()`. **Add sample data** appends demo colors/items and never deletes your existing uploads; near-duplicate palette colors are skipped.
+`palette` and `wardrobe` live in `useState` in `App.jsx`. The last tab (My Palette, My Wardrobe, or Generate) is restored after a reload. Tabs stay mounted once opened. Signed-in writes go to Supabase (`palette_colors`, `wardrobe_items`, Storage). Row Level Security limits rows to `auth.uid()`. **Add sample data** appends demo colors/items and never deletes your existing uploads; near-duplicate palette colors are skipped. Sample photos are solid PNG squares (the wardrobe bucket rejects SVG).
 
-**Export my closet** (signed-in header) downloads JSON `{ schema_version, exported_at, palette, wardrobe }` — tags, colors, and Storage paths only, not photo bytes.
+**Export my closet** (signed-in header) opens a chooser first: which clothing properties to include, whether to include the palette, and optional filters for category, formality, season, and warmth. Empty filters export every item. The file is JSON `{ schema_version, exported_at, filters, palette, wardrobe }` — tags, colors, and Storage paths only, not photo bytes.
 
 ### Security (single-user)
 

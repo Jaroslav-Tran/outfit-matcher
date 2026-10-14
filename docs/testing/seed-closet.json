@@ -1,0 +1,1880 @@
+{
+  "schema_version": 1,
+  "generated_for": "outfit-matcher manual TEST_PLAN",
+  "code_thresholds": {
+    "SAME_COLOR_DELTA_E": 12,
+    "PALETTE_SNAP_DELTA_E": 18,
+    "DUPLICATE_DELTA_E": 8,
+    "LOW_CHROMA_THRESHOLD": 8,
+    "HIGH_SATURATION_THRESHOLD": 0.6,
+    "MAX_COMBINATIONS": 50000,
+    "palettePoints": "max(0, 20 − ΔE) including neutrals",
+    "mono_hue": "≤20",
+    "analogous_hue": ">20 and ≤60",
+    "complementary_hue": "≥150 and ≤210",
+    "recency": {
+      "≤2d": -5,
+      "≤5d": -2,
+      "else": 0
+    },
+    "accessoryBonus": "+2 for exactly 1 accessory",
+    "satClash": "−3 × count of non-neutral items with HSL S>0.6 when ≥2 such items",
+    "fitBalance": "+3 fitted↔relaxed top/bottom",
+    "volumeStack": "−4 × (relaxedSilhouetteCount − 1) when ≥2 relaxed in top/bottom/mid/outer",
+    "layerInversion": "−4 fitted outerwear over relaxed top",
+    "lengthHierarchy": "+2 when stack≥2 and outer length ≥ inner",
+    "warmthDecrease": "−4 when outer warmth < inner",
+    "heavyBulk": "−4 when >1 heavy in layer stack",
+    "weatherBonus": "+2 per item matching weather seasons",
+    "comfort": {
+      "hot": {
+        "idealLayers": 1,
+        "maxWarmthSum": 1
+      },
+      "mild": {
+        "idealLayers": 2,
+        "maxWarmthSum": 3
+      },
+      "cold": {
+        "idealLayers": 3,
+        "maxWarmthSum": 6
+      },
+      "overLayerPenalty": -3,
+      "coldUnderWarmth": -3
+    }
+  },
+  "palette": [
+    {
+      "id": "PAL-WARM-SAND",
+      "hex": "#D5BBA7",
+      "label": "Warm Sand"
+    },
+    {
+      "id": "PAL-CARAMEL",
+      "hex": "#BD996F",
+      "label": "Caramel Latte"
+    },
+    {
+      "id": "PAL-OLIVE",
+      "hex": "#8E9B76",
+      "label": "Rich Olive"
+    },
+    {
+      "id": "PAL-COPPER",
+      "hex": "#BA815E",
+      "label": "Copper Rose"
+    },
+    {
+      "id": "PAL-SAGE",
+      "hex": "#708A6D",
+      "label": "Deep Sage"
+    },
+    {
+      "id": "PAL-TEAL",
+      "hex": "#4E8288",
+      "label": "Muted Teal"
+    },
+    {
+      "id": "PAL-NAVY",
+      "hex": "#4D648F",
+      "label": "Warm Navy"
+    },
+    {
+      "id": "PAL-BRONZE",
+      "hex": "#735742",
+      "label": "Chocolate Bronze"
+    },
+    {
+      "id": "PAL-CREAM",
+      "hex": "#EEE0D1",
+      "label": "Cream Whisper"
+    },
+    {
+      "id": "PAL-SAFFRON",
+      "hex": "#DCAB3F",
+      "label": "Saffron Glow"
+    },
+    {
+      "id": "PAL-ROSE",
+      "hex": "#C497A6",
+      "label": "Dusty Rose"
+    },
+    {
+      "id": "PAL-STONE",
+      "hex": "#979797",
+      "label": "Stone Gray"
+    }
+  ],
+  "wardrobe": [
+    {
+      "id": "TOP-BLACK-FITTED",
+      "label": "Black fitted tee",
+      "hex": "#000000",
+      "category": [
+        "top"
+      ],
+      "formality": "casual",
+      "fit": "fitted",
+      "warmth": "light",
+      "length": "regular",
+      "seasons": [
+        "spring",
+        "summer",
+        "fall",
+        "winter"
+      ],
+      "isNeutral": true,
+      "lastWorn": null,
+      "notes": "Neutral black"
+    },
+    {
+      "id": "TOP-WHITE-REG",
+      "label": "White regular tee",
+      "hex": "#FFFFFF",
+      "category": [
+        "top"
+      ],
+      "formality": "casual",
+      "fit": "regular",
+      "warmth": "light",
+      "length": "regular",
+      "seasons": [
+        "spring",
+        "summer",
+        "fall",
+        "winter"
+      ],
+      "isNeutral": true,
+      "lastWorn": null,
+      "notes": ""
+    },
+    {
+      "id": "TOP-GREY-RELAXED",
+      "label": "Grey relaxed sweatshirt",
+      "hex": "#808080",
+      "category": [
+        "top"
+      ],
+      "formality": "casual",
+      "fit": "relaxed",
+      "warmth": "medium",
+      "length": "regular",
+      "seasons": [
+        "spring",
+        "summer",
+        "fall",
+        "winter"
+      ],
+      "isNeutral": true,
+      "lastWorn": null,
+      "notes": ""
+    },
+    {
+      "id": "TOP-GREY-NOT-NEUTRAL",
+      "label": "Charcoal tee (not Neutral)",
+      "hex": "#6B6B6B",
+      "category": [
+        "top"
+      ],
+      "formality": "casual",
+      "fit": "regular",
+      "warmth": "light",
+      "length": "regular",
+      "seasons": [
+        "spring",
+        "summer",
+        "fall",
+        "winter"
+      ],
+      "isNeutral": false,
+      "lastWorn": null,
+      "notes": "Low-chroma grey with Neutral UNCHECKED — achromatic hue path; scheme falls to monochromatic when alone with neutrals"
+    },
+    {
+      "id": "TOP-NAVY-NEUTRAL",
+      "label": "Navy polo",
+      "hex": "#000080",
+      "category": [
+        "top"
+      ],
+      "formality": "smart-casual",
+      "fit": "fitted",
+      "warmth": "medium",
+      "length": "regular",
+      "seasons": [
+        "spring",
+        "summer",
+        "fall",
+        "winter"
+      ],
+      "isNeutral": true,
+      "lastWorn": null,
+      "notes": ""
+    },
+    {
+      "id": "TOP-BEIGE",
+      "label": "Beige henley",
+      "hex": "#F5F5DC",
+      "category": [
+        "top"
+      ],
+      "formality": "casual",
+      "fit": "regular",
+      "warmth": "medium",
+      "length": "regular",
+      "seasons": [
+        "spring",
+        "summer",
+        "fall",
+        "winter"
+      ],
+      "isNeutral": true,
+      "lastWorn": null,
+      "notes": ""
+    },
+    {
+      "id": "TOP-TAN",
+      "label": "Tan knit",
+      "hex": "#D2B48C",
+      "category": [
+        "top"
+      ],
+      "formality": "casual",
+      "fit": "regular",
+      "warmth": "medium",
+      "length": "regular",
+      "seasons": [
+        "spring",
+        "summer",
+        "fall",
+        "winter"
+      ],
+      "isNeutral": true,
+      "lastWorn": null,
+      "notes": ""
+    },
+    {
+      "id": "TOP-BROWN",
+      "label": "Brown henley",
+      "hex": "#8B4513",
+      "category": [
+        "top"
+      ],
+      "formality": "casual",
+      "fit": "regular",
+      "warmth": "medium",
+      "length": "regular",
+      "seasons": [
+        "spring",
+        "summer",
+        "fall",
+        "winter"
+      ],
+      "isNeutral": true,
+      "lastWorn": null,
+      "notes": ""
+    },
+    {
+      "id": "TOP-CHARCOAL",
+      "label": "Charcoal Neutral tee",
+      "hex": "#36454F",
+      "category": [
+        "top"
+      ],
+      "formality": "casual",
+      "fit": "regular",
+      "warmth": "medium",
+      "length": "regular",
+      "seasons": [
+        "spring",
+        "summer",
+        "fall",
+        "winter"
+      ],
+      "isNeutral": true,
+      "lastWorn": null,
+      "notes": ""
+    },
+    {
+      "id": "TOP-SAGE",
+      "label": "Deep Sage shirt",
+      "hex": "#708A6D",
+      "category": [
+        "top"
+      ],
+      "formality": "casual",
+      "fit": "regular",
+      "warmth": "light",
+      "length": "regular",
+      "seasons": [
+        "spring",
+        "summer"
+      ],
+      "isNeutral": false,
+      "lastWorn": null,
+      "notes": "Exact palette match → palettePoints 20"
+    },
+    {
+      "id": "TOP-COPPER",
+      "label": "Copper Rose tee",
+      "hex": "#BA815E",
+      "category": [
+        "top"
+      ],
+      "formality": "casual",
+      "fit": "fitted",
+      "warmth": "light",
+      "length": "regular",
+      "seasons": [
+        "spring",
+        "summer",
+        "fall"
+      ],
+      "isNeutral": false,
+      "lastWorn": null,
+      "notes": ""
+    },
+    {
+      "id": "TOP-TEAL",
+      "label": "Muted Teal tee",
+      "hex": "#4E8288",
+      "category": [
+        "top"
+      ],
+      "formality": "casual",
+      "fit": "regular",
+      "warmth": "light",
+      "length": "regular",
+      "seasons": [
+        "spring",
+        "summer",
+        "fall",
+        "winter"
+      ],
+      "isNeutral": false,
+      "lastWorn": null,
+      "notes": ""
+    },
+    {
+      "id": "TOP-PAL-NAVY",
+      "label": "Warm Navy shirt",
+      "hex": "#4D648F",
+      "category": [
+        "top"
+      ],
+      "formality": "smart-casual",
+      "fit": "fitted",
+      "warmth": "medium",
+      "length": "regular",
+      "seasons": [
+        "spring",
+        "summer",
+        "fall",
+        "winter"
+      ],
+      "isNeutral": false,
+      "lastWorn": null,
+      "notes": ""
+    },
+    {
+      "id": "TOP-SAFFRON",
+      "label": "Saffron sweater",
+      "hex": "#DCAB3F",
+      "category": [
+        "top"
+      ],
+      "formality": "casual",
+      "fit": "relaxed",
+      "warmth": "medium",
+      "length": "regular",
+      "seasons": [
+        "fall",
+        "winter"
+      ],
+      "isNeutral": false,
+      "lastWorn": null,
+      "notes": ""
+    },
+    {
+      "id": "TOP-ROSE",
+      "label": "Dusty Rose blouse",
+      "hex": "#C497A6",
+      "category": [
+        "top"
+      ],
+      "formality": "smart-casual",
+      "fit": "regular",
+      "warmth": "light",
+      "length": "regular",
+      "seasons": [
+        "spring",
+        "summer",
+        "fall",
+        "winter"
+      ],
+      "isNeutral": false,
+      "lastWorn": null,
+      "notes": ""
+    },
+    {
+      "id": "TOP-OLIVE",
+      "label": "Rich Olive tee",
+      "hex": "#8E9B76",
+      "category": [
+        "top"
+      ],
+      "formality": "casual",
+      "fit": "regular",
+      "warmth": "medium",
+      "length": "regular",
+      "seasons": [
+        "spring",
+        "summer",
+        "fall",
+        "winter"
+      ],
+      "isNeutral": false,
+      "lastWorn": null,
+      "notes": ""
+    },
+    {
+      "id": "TOP-TEAL-DE11",
+      "label": "Teal-near (ΔE11.5)",
+      "hex": "#749a90",
+      "category": [
+        "top"
+      ],
+      "formality": "casual",
+      "fit": "regular",
+      "warmth": "medium",
+      "length": "regular",
+      "seasons": [
+        "spring",
+        "summer",
+        "fall",
+        "winter"
+      ],
+      "isNeutral": false,
+      "lastWorn": null,
+      "notes": "ΔE vs #4E8288 = 11.50 < 12 → same color slot"
+    },
+    {
+      "id": "TOP-TEAL-DE13",
+      "label": "Teal-far (ΔE12.5)",
+      "hex": "#799c91",
+      "category": [
+        "top"
+      ],
+      "formality": "casual",
+      "fit": "regular",
+      "warmth": "medium",
+      "length": "regular",
+      "seasons": [
+        "spring",
+        "summer",
+        "fall",
+        "winter"
+      ],
+      "isNeutral": false,
+      "lastWorn": null,
+      "notes": "ΔE vs #4E8288 = 12.52 ≥ 12 → second color"
+    },
+    {
+      "id": "ACC-TEAL-DE8",
+      "label": "Teal scarf near-dup",
+      "hex": "#54798c",
+      "category": [
+        "accessory"
+      ],
+      "formality": "casual",
+      "fit": "regular",
+      "warmth": "medium",
+      "length": "regular",
+      "seasons": [
+        "spring",
+        "summer",
+        "fall",
+        "winter"
+      ],
+      "isNeutral": false,
+      "lastWorn": null,
+      "notes": "ΔE vs #4E8288 = 8.50; bulk DUPLICATE_DELTA_E=8 → at 8.50 NOT duplicate (<8 only); use #69918d for under-8"
+    },
+    {
+      "id": "ACC-TEAL-DE7",
+      "label": "Teal pin near-dup",
+      "hex": "#69918d",
+      "category": [
+        "accessory"
+      ],
+      "formality": "casual",
+      "fit": "regular",
+      "warmth": "medium",
+      "length": "regular",
+      "seasons": [
+        "spring",
+        "summer",
+        "fall",
+        "winter"
+      ],
+      "isNeutral": false,
+      "lastWorn": null,
+      "notes": "ΔE vs #4E8288 = 7.51 < 8 → bulk duplicate nudge vs TOP-TEAL"
+    },
+    {
+      "id": "TOP-TEAL-SNAP17",
+      "label": "Teal snap-inside",
+      "hex": "#45678c",
+      "category": [
+        "top"
+      ],
+      "formality": "casual",
+      "fit": "regular",
+      "warmth": "medium",
+      "length": "regular",
+      "seasons": [
+        "spring",
+        "summer",
+        "fall",
+        "winter"
+      ],
+      "isNeutral": false,
+      "lastWorn": null,
+      "notes": "ΔE vs #4E8288 = 17.49 < 18 → wardrobe snap-to-palette should offer Muted Teal"
+    },
+    {
+      "id": "TOP-TEAL-SNAP19",
+      "label": "Teal snap-outside",
+      "hex": "#8daa96",
+      "category": [
+        "top"
+      ],
+      "formality": "casual",
+      "fit": "regular",
+      "warmth": "medium",
+      "length": "regular",
+      "seasons": [
+        "spring",
+        "summer",
+        "fall",
+        "winter"
+      ],
+      "isNeutral": false,
+      "lastWorn": null,
+      "notes": "ΔE vs #4E8288 = 18.52 ≥ 18 → no snap"
+    },
+    {
+      "id": "BOTTOM-COPPER-DE11",
+      "label": "Copper-near pants",
+      "hex": "#ea9c68",
+      "category": [
+        "bottom"
+      ],
+      "formality": "casual",
+      "fit": "regular",
+      "warmth": "medium",
+      "length": "regular",
+      "seasons": [
+        "spring",
+        "summer",
+        "fall",
+        "winter"
+      ],
+      "isNeutral": false,
+      "lastWorn": null,
+      "notes": "ΔE vs #BA815E = 10.99 < 12"
+    },
+    {
+      "id": "BOTTOM-COPPER-DE13",
+      "label": "Copper-far pants",
+      "hex": "#f08872",
+      "category": [
+        "bottom"
+      ],
+      "formality": "casual",
+      "fit": "regular",
+      "warmth": "medium",
+      "length": "regular",
+      "seasons": [
+        "spring",
+        "summer",
+        "fall",
+        "winter"
+      ],
+      "isNeutral": false,
+      "lastWorn": null,
+      "notes": "ΔE vs #BA815E = 13.00 ≥ 12"
+    },
+    {
+      "id": "TOP-NT-A",
+      "label": "NT green A",
+      "hex": "#4ce253",
+      "category": [
+        "top"
+      ],
+      "formality": "casual",
+      "fit": "regular",
+      "warmth": "medium",
+      "length": "regular",
+      "seasons": [
+        "spring",
+        "summer",
+        "fall",
+        "winter"
+      ],
+      "isNeutral": false,
+      "lastWorn": null,
+      "notes": "ΔE(A,B)=10.57 ΔE(B,C)=4.32 ΔE(A,C)=14.07; union-find → 1 distinct"
+    },
+    {
+      "id": "BOTTOM-NT-B",
+      "label": "NT green B",
+      "hex": "#2abc59",
+      "category": [
+        "bottom"
+      ],
+      "formality": "casual",
+      "fit": "regular",
+      "warmth": "medium",
+      "length": "regular",
+      "seasons": [
+        "spring",
+        "summer",
+        "fall",
+        "winter"
+      ],
+      "isNeutral": false,
+      "lastWorn": null,
+      "notes": ""
+    },
+    {
+      "id": "ACC-NT-C",
+      "label": "NT green C",
+      "hex": "#30b56b",
+      "category": [
+        "accessory"
+      ],
+      "formality": "casual",
+      "fit": "regular",
+      "warmth": "medium",
+      "length": "regular",
+      "seasons": [
+        "spring",
+        "summer",
+        "fall",
+        "winter"
+      ],
+      "isNeutral": false,
+      "lastWorn": null,
+      "notes": ""
+    },
+    {
+      "id": "TOP-HUE-ANCHOR",
+      "label": "Hue anchor red",
+      "hex": "#9e2e2e",
+      "category": [
+        "top"
+      ],
+      "formality": "casual",
+      "fit": "regular",
+      "warmth": "medium",
+      "length": "regular",
+      "seasons": [
+        "spring",
+        "summer",
+        "fall",
+        "winter"
+      ],
+      "isNeutral": false,
+      "lastWorn": null,
+      "notes": "Scheme pair anchor"
+    },
+    {
+      "id": "BOTTOM-HUE-0",
+      "label": "Hue 0° twin",
+      "hex": "#9e2e2e",
+      "category": [
+        "bottom"
+      ],
+      "formality": "casual",
+      "fit": "regular",
+      "warmth": "medium",
+      "length": "regular",
+      "seasons": [
+        "spring",
+        "summer",
+        "fall",
+        "winter"
+      ],
+      "isNeutral": false,
+      "lastWorn": null,
+      "notes": "dist 0 → monochromatic"
+    },
+    {
+      "id": "BOTTOM-HUE-20",
+      "label": "Hue 20°",
+      "hex": "#c66839",
+      "category": [
+        "bottom"
+      ],
+      "formality": "casual",
+      "fit": "regular",
+      "warmth": "medium",
+      "length": "regular",
+      "seasons": [
+        "spring",
+        "summer",
+        "fall",
+        "winter"
+      ],
+      "isNeutral": false,
+      "lastWorn": null,
+      "notes": "With TOP #c63939: dist 20.00 → monochromatic; use TOP-HUE-20A"
+    },
+    {
+      "id": "TOP-HUE-20A",
+      "label": "Hue 20° A",
+      "hex": "#c63939",
+      "category": [
+        "top"
+      ],
+      "formality": "casual",
+      "fit": "regular",
+      "warmth": "medium",
+      "length": "regular",
+      "seasons": [
+        "spring",
+        "summer",
+        "fall",
+        "winter"
+      ],
+      "isNeutral": false,
+      "lastWorn": null,
+      "notes": "Pair with BOTTOM-HUE-20"
+    },
+    {
+      "id": "TOP-HUE-21A",
+      "label": "Hue 21° A",
+      "hex": "#bd2828",
+      "category": [
+        "top"
+      ],
+      "formality": "casual",
+      "fit": "regular",
+      "warmth": "medium",
+      "length": "regular",
+      "seasons": [
+        "spring",
+        "summer",
+        "fall",
+        "winter"
+      ],
+      "isNeutral": false,
+      "lastWorn": null,
+      "notes": ""
+    },
+    {
+      "id": "BOTTOM-HUE-21",
+      "label": "Hue 21°",
+      "hex": "#bd5c28",
+      "category": [
+        "bottom"
+      ],
+      "formality": "casual",
+      "fit": "regular",
+      "warmth": "medium",
+      "length": "regular",
+      "seasons": [
+        "spring",
+        "summer",
+        "fall",
+        "winter"
+      ],
+      "isNeutral": false,
+      "lastWorn": null,
+      "notes": "dist ≈20.94 → analogous"
+    },
+    {
+      "id": "BOTTOM-HUE-60",
+      "label": "Hue 60°",
+      "hex": "#9e9e2e",
+      "category": [
+        "bottom"
+      ],
+      "formality": "casual",
+      "fit": "regular",
+      "warmth": "medium",
+      "length": "regular",
+      "seasons": [
+        "spring",
+        "summer",
+        "fall",
+        "winter"
+      ],
+      "isNeutral": false,
+      "lastWorn": null,
+      "notes": "With TOP-HUE-ANCHOR dist 60 → analogous"
+    },
+    {
+      "id": "BOTTOM-HUE-61",
+      "label": "Hue 61° dead",
+      "hex": "#9c9e2e",
+      "category": [
+        "bottom"
+      ],
+      "formality": "casual",
+      "fit": "regular",
+      "warmth": "medium",
+      "length": "regular",
+      "seasons": [
+        "spring",
+        "summer",
+        "fall",
+        "winter"
+      ],
+      "isNeutral": false,
+      "lastWorn": null,
+      "notes": "dist ≈61.07 → unclassified (discarded)"
+    },
+    {
+      "id": "TOP-HUE-100A",
+      "label": "Hue 100° A",
+      "hex": "#b23434",
+      "category": [
+        "top"
+      ],
+      "formality": "casual",
+      "fit": "regular",
+      "warmth": "medium",
+      "length": "regular",
+      "seasons": [
+        "spring",
+        "summer",
+        "fall",
+        "winter"
+      ],
+      "isNeutral": false,
+      "lastWorn": null,
+      "notes": ""
+    },
+    {
+      "id": "BOTTOM-HUE-100",
+      "label": "Hue 100° dead",
+      "hex": "#5eb234",
+      "category": [
+        "bottom"
+      ],
+      "formality": "casual",
+      "fit": "regular",
+      "warmth": "medium",
+      "length": "regular",
+      "seasons": [
+        "spring",
+        "summer",
+        "fall",
+        "winter"
+      ],
+      "isNeutral": false,
+      "lastWorn": null,
+      "notes": "dist 100 → unclassified"
+    },
+    {
+      "id": "BOTTOM-HUE-149",
+      "label": "Hue 149°",
+      "hex": "#2e9e64",
+      "category": [
+        "bottom"
+      ],
+      "formality": "casual",
+      "fit": "regular",
+      "warmth": "medium",
+      "length": "regular",
+      "seasons": [
+        "spring",
+        "summer",
+        "fall",
+        "winter"
+      ],
+      "isNeutral": false,
+      "lastWorn": null,
+      "notes": "dist ≈148.93 → unclassified"
+    },
+    {
+      "id": "BOTTOM-HUE-150",
+      "label": "Hue 150°",
+      "hex": "#2e9e66",
+      "category": [
+        "bottom"
+      ],
+      "formality": "casual",
+      "fit": "regular",
+      "warmth": "medium",
+      "length": "regular",
+      "seasons": [
+        "spring",
+        "summer",
+        "fall",
+        "winter"
+      ],
+      "isNeutral": false,
+      "lastWorn": null,
+      "notes": "dist 150 → complementary"
+    },
+    {
+      "id": "BOTTOM-HUE-180",
+      "label": "Hue 180°",
+      "hex": "#2e9e9e",
+      "category": [
+        "bottom"
+      ],
+      "formality": "casual",
+      "fit": "regular",
+      "warmth": "medium",
+      "length": "regular",
+      "seasons": [
+        "spring",
+        "summer",
+        "fall",
+        "winter"
+      ],
+      "isNeutral": false,
+      "lastWorn": null,
+      "notes": "dist 180 → complementary"
+    },
+    {
+      "id": "TOP-LOUD",
+      "label": "Loud orange",
+      "hex": "#ec8013",
+      "category": [
+        "top"
+      ],
+      "formality": "casual",
+      "fit": "regular",
+      "warmth": "medium",
+      "length": "regular",
+      "seasons": [
+        "spring",
+        "summer",
+        "fall",
+        "winter"
+      ],
+      "isNeutral": false,
+      "lastWorn": null,
+      "notes": "HSL S>0.6; pair with BOTTOM-LOUD"
+    },
+    {
+      "id": "BOTTOM-LOUD",
+      "label": "Loud blue",
+      "hex": "#137fec",
+      "category": [
+        "bottom"
+      ],
+      "formality": "casual",
+      "fit": "regular",
+      "warmth": "medium",
+      "length": "regular",
+      "seasons": [
+        "spring",
+        "summer",
+        "fall",
+        "winter"
+      ],
+      "isNeutral": false,
+      "lastWorn": null,
+      "notes": "complementary + sat clash −3×2=−6"
+    },
+    {
+      "id": "BOTTOM-BLACK",
+      "label": "Black trousers",
+      "hex": "#000000",
+      "category": [
+        "bottom"
+      ],
+      "formality": "casual",
+      "fit": "regular",
+      "warmth": "medium",
+      "length": "regular",
+      "seasons": [
+        "spring",
+        "summer",
+        "fall",
+        "winter"
+      ],
+      "isNeutral": true,
+      "lastWorn": null,
+      "notes": ""
+    },
+    {
+      "id": "BOTTOM-BLACK-FITTED",
+      "label": "Black fitted trousers",
+      "hex": "#000000",
+      "category": [
+        "bottom"
+      ],
+      "formality": "casual",
+      "fit": "fitted",
+      "warmth": "medium",
+      "length": "regular",
+      "seasons": [
+        "spring",
+        "summer",
+        "fall",
+        "winter"
+      ],
+      "isNeutral": true,
+      "lastWorn": null,
+      "notes": ""
+    },
+    {
+      "id": "BOTTOM-BLACK-RELAXED",
+      "label": "Black relaxed trousers",
+      "hex": "#000000",
+      "category": [
+        "bottom"
+      ],
+      "formality": "casual",
+      "fit": "relaxed",
+      "warmth": "medium",
+      "length": "regular",
+      "seasons": [
+        "spring",
+        "summer",
+        "fall",
+        "winter"
+      ],
+      "isNeutral": true,
+      "lastWorn": null,
+      "notes": ""
+    },
+    {
+      "id": "BOTTOM-CREAM",
+      "label": "Cream Whisper chinos",
+      "hex": "#EEE0D1",
+      "category": [
+        "bottom"
+      ],
+      "formality": "casual",
+      "fit": "regular",
+      "warmth": "medium",
+      "length": "regular",
+      "seasons": [
+        "spring",
+        "summer",
+        "fall",
+        "winter"
+      ],
+      "isNeutral": true,
+      "lastWorn": null,
+      "notes": ""
+    },
+    {
+      "id": "BOTTOM-SC",
+      "label": "SC charcoal trousers",
+      "hex": "#36454F",
+      "category": [
+        "bottom"
+      ],
+      "formality": "smart-casual",
+      "fit": "fitted",
+      "warmth": "medium",
+      "length": "regular",
+      "seasons": [
+        "spring",
+        "summer",
+        "fall",
+        "winter"
+      ],
+      "isNeutral": true,
+      "lastWorn": null,
+      "notes": ""
+    },
+    {
+      "id": "BOTTOM-FORMAL",
+      "label": "Formal black pants",
+      "hex": "#000000",
+      "category": [
+        "bottom"
+      ],
+      "formality": "formal",
+      "fit": "fitted",
+      "warmth": "medium",
+      "length": "regular",
+      "seasons": [
+        "spring",
+        "summer",
+        "fall",
+        "winter"
+      ],
+      "isNeutral": true,
+      "lastWorn": null,
+      "notes": ""
+    },
+    {
+      "id": "SHOES-BLACK",
+      "label": "Black sneakers",
+      "hex": "#000000",
+      "category": [
+        "shoes"
+      ],
+      "formality": "casual",
+      "fit": "regular",
+      "warmth": "medium",
+      "length": "regular",
+      "seasons": [
+        "spring",
+        "summer",
+        "fall",
+        "winter"
+      ],
+      "isNeutral": true,
+      "lastWorn": null,
+      "notes": ""
+    },
+    {
+      "id": "SHOES-BLACK-FITTED",
+      "label": "Black sleek shoes",
+      "hex": "#000000",
+      "category": [
+        "shoes"
+      ],
+      "formality": "casual",
+      "fit": "fitted",
+      "warmth": "medium",
+      "length": "regular",
+      "seasons": [
+        "spring",
+        "summer",
+        "fall",
+        "winter"
+      ],
+      "isNeutral": true,
+      "lastWorn": null,
+      "notes": "UI fit label: sleek/low-profile"
+    },
+    {
+      "id": "SHOES-BLACK-RELAXED",
+      "label": "Chunky black sneakers",
+      "hex": "#000000",
+      "category": [
+        "shoes"
+      ],
+      "formality": "casual",
+      "fit": "relaxed",
+      "warmth": "medium",
+      "length": "regular",
+      "seasons": [
+        "spring",
+        "summer",
+        "fall",
+        "winter"
+      ],
+      "isNeutral": true,
+      "lastWorn": null,
+      "notes": "UI fit label: chunky/platform; shoes fit does NOT affect score"
+    },
+    {
+      "id": "SHOES-SC",
+      "label": "SC loafers",
+      "hex": "#000000",
+      "category": [
+        "shoes"
+      ],
+      "formality": "smart-casual",
+      "fit": "fitted",
+      "warmth": "medium",
+      "length": "regular",
+      "seasons": [
+        "spring",
+        "summer",
+        "fall",
+        "winter"
+      ],
+      "isNeutral": true,
+      "lastWorn": null,
+      "notes": ""
+    },
+    {
+      "id": "SHOES-FORMAL",
+      "label": "Formal oxfords",
+      "hex": "#000000",
+      "category": [
+        "shoes"
+      ],
+      "formality": "formal",
+      "fit": "fitted",
+      "warmth": "medium",
+      "length": "regular",
+      "seasons": [
+        "spring",
+        "summer",
+        "fall",
+        "winter"
+      ],
+      "isNeutral": true,
+      "lastWorn": null,
+      "notes": ""
+    },
+    {
+      "id": "SHOES-BROWN",
+      "label": "Brown boots",
+      "hex": "#8B4513",
+      "category": [
+        "shoes"
+      ],
+      "formality": "casual",
+      "fit": "regular",
+      "warmth": "medium",
+      "length": "regular",
+      "seasons": [
+        "fall",
+        "winter"
+      ],
+      "isNeutral": true,
+      "lastWorn": null,
+      "notes": ""
+    },
+    {
+      "id": "OUTER-CASUAL",
+      "label": "Casual denim jacket",
+      "hex": "#4D648F",
+      "category": [
+        "outerwear"
+      ],
+      "formality": "casual",
+      "fit": "regular",
+      "warmth": "medium",
+      "length": "regular",
+      "seasons": [
+        "spring",
+        "summer",
+        "fall",
+        "winter"
+      ],
+      "isNeutral": false,
+      "lastWorn": null,
+      "notes": ""
+    },
+    {
+      "id": "OUTER-SC",
+      "label": "SC blazer",
+      "hex": "#36454F",
+      "category": [
+        "outerwear"
+      ],
+      "formality": "smart-casual",
+      "fit": "fitted",
+      "warmth": "medium",
+      "length": "regular",
+      "seasons": [
+        "spring",
+        "summer",
+        "fall",
+        "winter"
+      ],
+      "isNeutral": true,
+      "lastWorn": null,
+      "notes": "Allowed over casual top (≤ top+1)"
+    },
+    {
+      "id": "OUTER-FORMAL",
+      "label": "Formal overcoat",
+      "hex": "#000000",
+      "category": [
+        "outerwear"
+      ],
+      "formality": "formal",
+      "fit": "regular",
+      "warmth": "heavy",
+      "length": "long",
+      "seasons": [
+        "spring",
+        "summer",
+        "fall",
+        "winter"
+      ],
+      "isNeutral": true,
+      "lastWorn": null,
+      "notes": "2 tiers above casual → rejected"
+    },
+    {
+      "id": "MID-CASUAL",
+      "label": "Casual cardigan",
+      "hex": "#979797",
+      "category": [
+        "mid-layer"
+      ],
+      "formality": "casual",
+      "fit": "regular",
+      "warmth": "medium",
+      "length": "regular",
+      "seasons": [
+        "spring",
+        "summer",
+        "fall",
+        "winter"
+      ],
+      "isNeutral": true,
+      "lastWorn": null,
+      "notes": ""
+    },
+    {
+      "id": "MID-SC",
+      "label": "SC vest",
+      "hex": "#36454F",
+      "category": [
+        "mid-layer"
+      ],
+      "formality": "smart-casual",
+      "fit": "fitted",
+      "warmth": "medium",
+      "length": "regular",
+      "seasons": [
+        "spring",
+        "summer",
+        "fall",
+        "winter"
+      ],
+      "isNeutral": true,
+      "lastWorn": null,
+      "notes": "With casual top → rejected (must match exactly)"
+    },
+    {
+      "id": "ACC-CASUAL",
+      "label": "Casual belt",
+      "hex": "#8B4513",
+      "category": [
+        "accessory"
+      ],
+      "formality": "casual",
+      "fit": "regular",
+      "warmth": "medium",
+      "length": "regular",
+      "seasons": [
+        "spring",
+        "summer",
+        "fall",
+        "winter"
+      ],
+      "isNeutral": true,
+      "lastWorn": null,
+      "notes": ""
+    },
+    {
+      "id": "ACC-FORMAL",
+      "label": "Formal tie",
+      "hex": "#4D648F",
+      "category": [
+        "accessory"
+      ],
+      "formality": "formal",
+      "fit": "fitted",
+      "warmth": "medium",
+      "length": "regular",
+      "seasons": [
+        "spring",
+        "summer",
+        "fall",
+        "winter"
+      ],
+      "isNeutral": false,
+      "lastWorn": null,
+      "notes": "With casual core → rejected"
+    },
+    {
+      "id": "ACC-CASUAL-2",
+      "label": "Casual watch",
+      "hex": "#000000",
+      "category": [
+        "accessory"
+      ],
+      "formality": "casual",
+      "fit": "regular",
+      "warmth": "medium",
+      "length": "regular",
+      "seasons": [
+        "spring",
+        "summer",
+        "fall",
+        "winter"
+      ],
+      "isNeutral": true,
+      "lastWorn": null,
+      "notes": ""
+    },
+    {
+      "id": "TOP-MID-CARDIGAN",
+      "label": "Dual cardigan",
+      "hex": "#735742",
+      "category": [
+        "top",
+        "mid-layer"
+      ],
+      "formality": "casual",
+      "fit": "regular",
+      "warmth": "medium",
+      "length": "regular",
+      "seasons": [
+        "spring",
+        "summer",
+        "fall",
+        "winter"
+      ],
+      "isNeutral": false,
+      "lastWorn": null,
+      "notes": "homeCategory=top; chip also mid-layer; cannot fill two slots same combo"
+    },
+    {
+      "id": "OUTER-MID-LIGHT",
+      "label": "Light jacket dual",
+      "hex": "#4E8288",
+      "category": [
+        "outerwear",
+        "mid-layer"
+      ],
+      "formality": "casual",
+      "fit": "regular",
+      "warmth": "light",
+      "length": "regular",
+      "seasons": [
+        "spring",
+        "summer",
+        "fall",
+        "winter"
+      ],
+      "isNeutral": false,
+      "lastWorn": null,
+      "notes": ""
+    },
+    {
+      "id": "TOP-RELAXED-LIGHT",
+      "label": "Relaxed light tee",
+      "hex": "#708A6D",
+      "category": [
+        "top"
+      ],
+      "formality": "casual",
+      "fit": "relaxed",
+      "warmth": "light",
+      "length": "cropped",
+      "seasons": [
+        "spring",
+        "summer",
+        "fall",
+        "winter"
+      ],
+      "isNeutral": false,
+      "lastWorn": null,
+      "notes": ""
+    },
+    {
+      "id": "MID-RELAXED",
+      "label": "Relaxed mid hoodie",
+      "hex": "#979797",
+      "category": [
+        "mid-layer"
+      ],
+      "formality": "casual",
+      "fit": "relaxed",
+      "warmth": "medium",
+      "length": "regular",
+      "seasons": [
+        "spring",
+        "summer",
+        "fall",
+        "winter"
+      ],
+      "isNeutral": true,
+      "lastWorn": null,
+      "notes": ""
+    },
+    {
+      "id": "OUTER-RELAXED",
+      "label": "Relaxed parka",
+      "hex": "#36454F",
+      "category": [
+        "outerwear"
+      ],
+      "formality": "casual",
+      "fit": "relaxed",
+      "warmth": "heavy",
+      "length": "long",
+      "seasons": [
+        "spring",
+        "summer",
+        "fall",
+        "winter"
+      ],
+      "isNeutral": true,
+      "lastWorn": null,
+      "notes": ""
+    },
+    {
+      "id": "OUTER-FITTED-LIGHT",
+      "label": "Fitted light jacket",
+      "hex": "#4D648F",
+      "category": [
+        "outerwear"
+      ],
+      "formality": "casual",
+      "fit": "fitted",
+      "warmth": "light",
+      "length": "cropped",
+      "seasons": [
+        "spring",
+        "summer",
+        "fall",
+        "winter"
+      ],
+      "isNeutral": false,
+      "lastWorn": null,
+      "notes": "Over relaxed top → layer inversion −4; also warmth decrease if top heavy"
+    },
+    {
+      "id": "TOP-HEAVY-LONG",
+      "label": "Heavy long sweater",
+      "hex": "#735742",
+      "category": [
+        "top"
+      ],
+      "formality": "casual",
+      "fit": "regular",
+      "warmth": "heavy",
+      "length": "long",
+      "seasons": [
+        "winter"
+      ],
+      "isNeutral": false,
+      "lastWorn": null,
+      "notes": ""
+    },
+    {
+      "id": "MID-HEAVY",
+      "label": "Heavy mid fleece",
+      "hex": "#000000",
+      "category": [
+        "mid-layer"
+      ],
+      "formality": "casual",
+      "fit": "regular",
+      "warmth": "heavy",
+      "length": "regular",
+      "seasons": [
+        "spring",
+        "summer",
+        "fall",
+        "winter"
+      ],
+      "isNeutral": true,
+      "lastWorn": null,
+      "notes": ""
+    },
+    {
+      "id": "OUTER-HEAVY-LONG",
+      "label": "Heavy long coat",
+      "hex": "#000000",
+      "category": [
+        "outerwear"
+      ],
+      "formality": "casual",
+      "fit": "regular",
+      "warmth": "heavy",
+      "length": "long",
+      "seasons": [
+        "spring",
+        "summer",
+        "fall",
+        "winter"
+      ],
+      "isNeutral": true,
+      "lastWorn": null,
+      "notes": ""
+    },
+    {
+      "id": "MID-LIGHT-LONG",
+      "label": "Light long mid",
+      "hex": "#D3D3D3",
+      "category": [
+        "mid-layer"
+      ],
+      "formality": "casual",
+      "fit": "regular",
+      "warmth": "light",
+      "length": "long",
+      "seasons": [
+        "spring",
+        "summer",
+        "fall",
+        "winter"
+      ],
+      "isNeutral": true,
+      "lastWorn": null,
+      "notes": "Length hierarchy OK over cropped top"
+    },
+    {
+      "id": "TOP-SUMMER-ONLY",
+      "label": "Summer linen",
+      "hex": "#8E9B76",
+      "category": [
+        "top"
+      ],
+      "formality": "casual",
+      "fit": "regular",
+      "warmth": "light",
+      "length": "regular",
+      "seasons": [
+        "summer"
+      ],
+      "isNeutral": false,
+      "lastWorn": null,
+      "notes": ""
+    },
+    {
+      "id": "TOP-NO-SEASONS",
+      "label": "No-season tee",
+      "hex": "#BA815E",
+      "category": [
+        "top"
+      ],
+      "formality": "casual",
+      "fit": "regular",
+      "warmth": "light",
+      "length": "regular",
+      "seasons": [],
+      "isNeutral": false,
+      "lastWorn": null,
+      "notes": "Empty seasons → treated as all four (itemFitsSeason)"
+    },
+    {
+      "id": "BOTTOM-WINTER",
+      "label": "Winter wool pants",
+      "hex": "#36454F",
+      "category": [
+        "bottom"
+      ],
+      "formality": "casual",
+      "fit": "regular",
+      "warmth": "heavy",
+      "length": "regular",
+      "seasons": [
+        "winter"
+      ],
+      "isNeutral": true,
+      "lastWorn": null,
+      "notes": ""
+    },
+    {
+      "id": "TOP-WORN-TODAY",
+      "label": "Worn today tee",
+      "hex": "#708A6D",
+      "category": [
+        "top"
+      ],
+      "formality": "casual",
+      "fit": "regular",
+      "warmth": "medium",
+      "length": "regular",
+      "seasons": [
+        "spring",
+        "summer",
+        "fall",
+        "winter"
+      ],
+      "isNeutral": false,
+      "lastWorn": "2026-10-12",
+      "notes": "recency −5"
+    },
+    {
+      "id": "TOP-WORN-1D",
+      "label": "Worn 1d tee",
+      "hex": "#BA815E",
+      "category": [
+        "top"
+      ],
+      "formality": "casual",
+      "fit": "regular",
+      "warmth": "medium",
+      "length": "regular",
+      "seasons": [
+        "spring",
+        "summer",
+        "fall",
+        "winter"
+      ],
+      "isNeutral": false,
+      "lastWorn": "2026-10-11",
+      "notes": "days≤2 → −5"
+    },
+    {
+      "id": "TOP-WORN-4D",
+      "label": "Worn 4d tee",
+      "hex": "#4E8288",
+      "category": [
+        "top"
+      ],
+      "formality": "casual",
+      "fit": "regular",
+      "warmth": "medium",
+      "length": "regular",
+      "seasons": [
+        "spring",
+        "summer",
+        "fall",
+        "winter"
+      ],
+      "isNeutral": false,
+      "lastWorn": "2026-10-08",
+      "notes": "days≤5 → −2"
+    },
+    {
+      "id": "TOP-WORN-10D",
+      "label": "Worn 10d tee",
+      "hex": "#4D648F",
+      "category": [
+        "top"
+      ],
+      "formality": "casual",
+      "fit": "regular",
+      "warmth": "medium",
+      "length": "regular",
+      "seasons": [
+        "spring",
+        "summer",
+        "fall",
+        "winter"
+      ],
+      "isNeutral": false,
+      "lastWorn": "2026-10-02",
+      "notes": "days>5 → 0"
+    },
+    {
+      "id": "TOP-NEVER-WORN",
+      "label": "Never worn tee",
+      "hex": "#DCAB3F",
+      "category": [
+        "top"
+      ],
+      "formality": "casual",
+      "fit": "regular",
+      "warmth": "medium",
+      "length": "regular",
+      "seasons": [
+        "spring",
+        "summer",
+        "fall",
+        "winter"
+      ],
+      "isNeutral": false,
+      "lastWorn": null,
+      "notes": "recency 0"
+    },
+    {
+      "id": "TOP-LEGACY-NULLS",
+      "label": "Legacy null warmth/length",
+      "hex": "#8E9B76",
+      "category": [
+        "top"
+      ],
+      "formality": "casual",
+      "fit": "regular",
+      "warmth": null,
+      "length": null,
+      "seasons": [
+        "spring"
+      ],
+      "isNeutral": false,
+      "lastWorn": null,
+      "notes": "normalizeFit/Warmth/Length → regular/medium/regular"
+    },
+    {
+      "id": "TOP-FORMAL",
+      "label": "Formal dress shirt",
+      "hex": "#FFFFFF",
+      "category": [
+        "top"
+      ],
+      "formality": "formal",
+      "fit": "fitted",
+      "warmth": "light",
+      "length": "regular",
+      "seasons": [
+        "spring",
+        "summer",
+        "fall",
+        "winter"
+      ],
+      "isNeutral": true,
+      "lastWorn": null,
+      "notes": ""
+    }
+  ],
+  "computed_deltaE": {
+    "#4E8288|#749a90": 11.5,
+    "#4E8288|#799c91": 12.52,
+    "#4E8288|#69918d": 7.51,
+    "#4E8288|#54798c": 8.5,
+    "#4E8288|#45678c": 17.49,
+    "#4E8288|#8daa96": 18.52,
+    "#BA815E|#ea9c68": 10.99,
+    "#BA815E|#f08872": 13,
+    "#4ce253|#2abc59": 10.57,
+    "#2abc59|#30b56b": 4.32,
+    "#4ce253|#30b56b": 14.07
+  },
+  "scheme_pairs": {
+    "0": {
+      "top": "TOP-HUE-ANCHOR",
+      "bottom": "BOTTOM-HUE-0",
+      "dist": 0,
+      "expect": "monochromatic"
+    },
+    "20": {
+      "top": "TOP-HUE-20A",
+      "bottom": "BOTTOM-HUE-20",
+      "dist": 20,
+      "expect": "monochromatic"
+    },
+    "21": {
+      "top": "TOP-HUE-21A",
+      "bottom": "BOTTOM-HUE-21",
+      "dist": 20.94,
+      "expect": "analogous"
+    },
+    "60": {
+      "top": "TOP-HUE-ANCHOR",
+      "bottom": "BOTTOM-HUE-60",
+      "dist": 60,
+      "expect": "analogous"
+    },
+    "61": {
+      "top": "TOP-HUE-ANCHOR",
+      "bottom": "BOTTOM-HUE-61",
+      "dist": 61.07,
+      "expect": "discarded (unclassified)"
+    },
+    "100": {
+      "top": "TOP-HUE-100A",
+      "bottom": "BOTTOM-HUE-100",
+      "dist": 100,
+      "expect": "discarded (unclassified)"
+    },
+    "149": {
+      "top": "TOP-HUE-ANCHOR",
+      "bottom": "BOTTOM-HUE-149",
+      "dist": 148.93,
+      "expect": "discarded (unclassified)"
+    },
+    "150": {
+      "top": "TOP-HUE-ANCHOR",
+      "bottom": "BOTTOM-HUE-150",
+      "dist": 150,
+      "expect": "complementary"
+    },
+    "180": {
+      "top": "TOP-HUE-ANCHOR",
+      "bottom": "BOTTOM-HUE-180",
+      "dist": 180,
+      "expect": "complementary"
+    }
+  },
+  "last_worn_dates_relative_to": "2026-10-12"
+}

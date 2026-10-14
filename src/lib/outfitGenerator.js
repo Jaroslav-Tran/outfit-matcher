@@ -30,6 +30,21 @@ export const LAYER_COMFORT_RULES = {
 
 const REQUIRED_SLOT_CATEGORIES = ['top', 'bottom', 'shoes']
 
+const GENERIC_EMPTY_OUTFIT =
+  'Not enough matching pieces yet — add more items or relax the formality or season filter'
+
+const ADD_SLOT_LABELS = {
+  top: 'a top',
+  bottom: 'a bottom',
+  shoes: 'shoes',
+}
+
+const FORMALITY_SLOT_LABELS = {
+  top: 'tops',
+  bottom: 'bottoms',
+  shoes: 'shoes',
+}
+
 /** Local calendar date as YYYY-MM-DD (device timezone). */
 export function localDateISO(date = new Date()) {
   const y = date.getFullYear()
@@ -676,6 +691,48 @@ function scoreVisitedCombo(combo, weatherSeasons) {
     score,
     explanation: buildExplanation(combo, colorScheme, fit),
   }
+}
+
+function joinPhrases(phrases, conjunction) {
+  if (phrases.length <= 1) return phrases[0] || ''
+  if (phrases.length === 2) return `${phrases[0]} ${conjunction} ${phrases[1]}`
+  return `${phrases.slice(0, -1).join(', ')}, ${conjunction} ${phrases[phrases.length - 1]}`
+}
+
+/**
+ * Why Generate produced no cards.
+ * Names a missing top, bottom, or shoes slot when that slot is empty.
+ * Names the formality filter when those slots exist but none match it.
+ * Otherwise the generic relax-the-filter sentence (color rules rejected every combo).
+ */
+export function emptyOutfitMessage(wardrobe, formalityFilter = 'any', seasonFilter = 'any') {
+  const seasonFiltered = filterSeason(wardrobe || [], seasonFilter)
+  const missing = REQUIRED_SLOT_CATEGORIES.filter(
+    (category) => byCategory(seasonFiltered, category).length === 0,
+  )
+  if (missing.length) {
+    const seasonNote = seasonFilter && seasonFilter !== 'any' ? ` for ${seasonFilter}` : ''
+    return `Not enough matching pieces yet — add ${joinPhrases(
+      missing.map((category) => ADD_SLOT_LABELS[category]),
+      'and',
+    )}${seasonNote}.`
+  }
+
+  if (formalityFilter && formalityFilter !== 'any') {
+    const pools = poolsForTier(seasonFiltered, formalityFilter)
+    const poolKey = { top: 'tops', bottom: 'bottoms', shoes: 'shoes' }
+    const missingTier = REQUIRED_SLOT_CATEGORIES.filter(
+      (category) => pools[poolKey[category]].length === 0,
+    )
+    if (missingTier.length) {
+      return `No ${formalityFilter} ${joinPhrases(
+        missingTier.map((category) => FORMALITY_SLOT_LABELS[category]),
+        'or',
+      )} match this filter.`
+    }
+  }
+
+  return GENERIC_EMPTY_OUTFIT
 }
 
 /**

@@ -1,0 +1,1067 @@
+{
+  "schema_version": 1,
+  "purpose": "Exceed MAX_COMBINATIONS=50000 raw estimate with maxAccessories=2",
+  "how_to_load": "Use a throwaway account. Add the 13 core pieces, then bulk-add 35 solid-grey accessory photos tagged casual/accessory/Neutral. Or append these IDs on top of seed-closet.json casual core.",
+  "raw_combination_count_maxAccessories_2": 153333,
+  "raw_combination_count_maxAccessories_0": 243,
+  "expected_console_on_generate": "Outfit enumeration: accessory subsets limited to 0–N … OR accessories=0, top-K=… (pruned estimate …)",
+  "wardrobe": [
+    {
+      "id": "LG-TOP-1",
+      "label": "LG top 1",
+      "hex": "#708A6D",
+      "category": [
+        "top"
+      ],
+      "formality": "casual",
+      "fit": "regular",
+      "warmth": "medium",
+      "length": "regular",
+      "seasons": [
+        "spring",
+        "summer",
+        "fall",
+        "winter"
+      ],
+      "isNeutral": false,
+      "lastWorn": null
+    },
+    {
+      "id": "LG-TOP-2",
+      "label": "LG top 2",
+      "hex": "#BA815E",
+      "category": [
+        "top"
+      ],
+      "formality": "casual",
+      "fit": "regular",
+      "warmth": "medium",
+      "length": "regular",
+      "seasons": [
+        "spring",
+        "summer",
+        "fall",
+        "winter"
+      ],
+      "isNeutral": false,
+      "lastWorn": null
+    },
+    {
+      "id": "LG-TOP-3",
+      "label": "LG top 3",
+      "hex": "#4E8288",
+      "category": [
+        "top"
+      ],
+      "formality": "casual",
+      "fit": "regular",
+      "warmth": "medium",
+      "length": "regular",
+      "seasons": [
+        "spring",
+        "summer",
+        "fall",
+        "winter"
+      ],
+      "isNeutral": false,
+      "lastWorn": null
+    },
+    {
+      "id": "LG-BOT-1",
+      "label": "LG bot 1",
+      "hex": "#000000",
+      "category": [
+        "bottom"
+      ],
+      "formality": "casual",
+      "fit": "regular",
+      "warmth": "medium",
+      "length": "regular",
+      "seasons": [
+        "spring",
+        "summer",
+        "fall",
+        "winter"
+      ],
+      "isNeutral": true,
+      "lastWorn": null
+    },
+    {
+      "id": "LG-BOT-2",
+      "label": "LG bot 2",
+      "hex": "#36454F",
+      "category": [
+        "bottom"
+      ],
+      "formality": "casual",
+      "fit": "regular",
+      "warmth": "medium",
+      "length": "regular",
+      "seasons": [
+        "spring",
+        "summer",
+        "fall",
+        "winter"
+      ],
+      "isNeutral": true,
+      "lastWorn": null
+    },
+    {
+      "id": "LG-BOT-3",
+      "label": "LG bot 3",
+      "hex": "#EEE0D1",
+      "category": [
+        "bottom"
+      ],
+      "formality": "casual",
+      "fit": "regular",
+      "warmth": "medium",
+      "length": "regular",
+      "seasons": [
+        "spring",
+        "summer",
+        "fall",
+        "winter"
+      ],
+      "isNeutral": true,
+      "lastWorn": null
+    },
+    {
+      "id": "LG-SHOE-1",
+      "label": "LG shoe 1",
+      "hex": "#000000",
+      "category": [
+        "shoes"
+      ],
+      "formality": "casual",
+      "fit": "regular",
+      "warmth": "medium",
+      "length": "regular",
+      "seasons": [
+        "spring",
+        "summer",
+        "fall",
+        "winter"
+      ],
+      "isNeutral": true,
+      "lastWorn": null
+    },
+    {
+      "id": "LG-SHOE-2",
+      "label": "LG shoe 2",
+      "hex": "#8B4513",
+      "category": [
+        "shoes"
+      ],
+      "formality": "casual",
+      "fit": "regular",
+      "warmth": "medium",
+      "length": "regular",
+      "seasons": [
+        "spring",
+        "summer",
+        "fall",
+        "winter"
+      ],
+      "isNeutral": true,
+      "lastWorn": null
+    },
+    {
+      "id": "LG-SHOE-3",
+      "label": "LG shoe 3",
+      "hex": "#FFFFFF",
+      "category": [
+        "shoes"
+      ],
+      "formality": "casual",
+      "fit": "regular",
+      "warmth": "medium",
+      "length": "regular",
+      "seasons": [
+        "spring",
+        "summer",
+        "fall",
+        "winter"
+      ],
+      "isNeutral": true,
+      "lastWorn": null
+    },
+    {
+      "id": "LG-MID-1",
+      "label": "LG mid 1",
+      "hex": "#808080",
+      "category": [
+        "mid-layer"
+      ],
+      "formality": "casual",
+      "fit": "regular",
+      "warmth": "medium",
+      "length": "regular",
+      "seasons": [
+        "spring",
+        "summer",
+        "fall",
+        "winter"
+      ],
+      "isNeutral": true,
+      "lastWorn": null
+    },
+    {
+      "id": "LG-MID-2",
+      "label": "LG mid 2",
+      "hex": "#D3D3D3",
+      "category": [
+        "mid-layer"
+      ],
+      "formality": "casual",
+      "fit": "regular",
+      "warmth": "medium",
+      "length": "regular",
+      "seasons": [
+        "spring",
+        "summer",
+        "fall",
+        "winter"
+      ],
+      "isNeutral": true,
+      "lastWorn": null
+    },
+    {
+      "id": "LG-OUT-1",
+      "label": "LG out 1",
+      "hex": "#000000",
+      "category": [
+        "outerwear"
+      ],
+      "formality": "casual",
+      "fit": "regular",
+      "warmth": "heavy",
+      "length": "long",
+      "seasons": [
+        "spring",
+        "summer",
+        "fall",
+        "winter"
+      ],
+      "isNeutral": true,
+      "lastWorn": null
+    },
+    {
+      "id": "LG-OUT-2",
+      "label": "LG out 2",
+      "hex": "#36454F",
+      "category": [
+        "outerwear"
+      ],
+      "formality": "casual",
+      "fit": "regular",
+      "warmth": "medium",
+      "length": "regular",
+      "seasons": [
+        "spring",
+        "summer",
+        "fall",
+        "winter"
+      ],
+      "isNeutral": true,
+      "lastWorn": null
+    },
+    {
+      "id": "LG-ACC-01",
+      "label": "LG accessory 1",
+      "hex": "#1a1a1a",
+      "category": [
+        "accessory"
+      ],
+      "formality": "casual",
+      "fit": "regular",
+      "warmth": "light",
+      "length": "regular",
+      "seasons": [
+        "spring",
+        "summer",
+        "fall",
+        "winter"
+      ],
+      "isNeutral": true,
+      "lastWorn": null,
+      "notes": "Neutral accessory for combo explosion"
+    },
+    {
+      "id": "LG-ACC-02",
+      "label": "LG accessory 2",
+      "hex": "#202020",
+      "category": [
+        "accessory"
+      ],
+      "formality": "casual",
+      "fit": "regular",
+      "warmth": "light",
+      "length": "regular",
+      "seasons": [
+        "spring",
+        "summer",
+        "fall",
+        "winter"
+      ],
+      "isNeutral": true,
+      "lastWorn": null,
+      "notes": "Neutral accessory for combo explosion"
+    },
+    {
+      "id": "LG-ACC-03",
+      "label": "LG accessory 3",
+      "hex": "#262626",
+      "category": [
+        "accessory"
+      ],
+      "formality": "casual",
+      "fit": "regular",
+      "warmth": "light",
+      "length": "regular",
+      "seasons": [
+        "spring",
+        "summer",
+        "fall",
+        "winter"
+      ],
+      "isNeutral": true,
+      "lastWorn": null,
+      "notes": "Neutral accessory for combo explosion"
+    },
+    {
+      "id": "LG-ACC-04",
+      "label": "LG accessory 4",
+      "hex": "#2c2c2c",
+      "category": [
+        "accessory"
+      ],
+      "formality": "casual",
+      "fit": "regular",
+      "warmth": "light",
+      "length": "regular",
+      "seasons": [
+        "spring",
+        "summer",
+        "fall",
+        "winter"
+      ],
+      "isNeutral": true,
+      "lastWorn": null,
+      "notes": "Neutral accessory for combo explosion"
+    },
+    {
+      "id": "LG-ACC-05",
+      "label": "LG accessory 5",
+      "hex": "#323232",
+      "category": [
+        "accessory"
+      ],
+      "formality": "casual",
+      "fit": "regular",
+      "warmth": "light",
+      "length": "regular",
+      "seasons": [
+        "spring",
+        "summer",
+        "fall",
+        "winter"
+      ],
+      "isNeutral": true,
+      "lastWorn": null,
+      "notes": "Neutral accessory for combo explosion"
+    },
+    {
+      "id": "LG-ACC-06",
+      "label": "LG accessory 6",
+      "hex": "#383838",
+      "category": [
+        "accessory"
+      ],
+      "formality": "casual",
+      "fit": "regular",
+      "warmth": "light",
+      "length": "regular",
+      "seasons": [
+        "spring",
+        "summer",
+        "fall",
+        "winter"
+      ],
+      "isNeutral": true,
+      "lastWorn": null,
+      "notes": "Neutral accessory for combo explosion"
+    },
+    {
+      "id": "LG-ACC-07",
+      "label": "LG accessory 7",
+      "hex": "#3e3e3e",
+      "category": [
+        "accessory"
+      ],
+      "formality": "casual",
+      "fit": "regular",
+      "warmth": "light",
+      "length": "regular",
+      "seasons": [
+        "spring",
+        "summer",
+        "fall",
+        "winter"
+      ],
+      "isNeutral": true,
+      "lastWorn": null,
+      "notes": "Neutral accessory for combo explosion"
+    },
+    {
+      "id": "LG-ACC-08",
+      "label": "LG accessory 8",
+      "hex": "#444444",
+      "category": [
+        "accessory"
+      ],
+      "formality": "casual",
+      "fit": "regular",
+      "warmth": "light",
+      "length": "regular",
+      "seasons": [
+        "spring",
+        "summer",
+        "fall",
+        "winter"
+      ],
+      "isNeutral": true,
+      "lastWorn": null,
+      "notes": "Neutral accessory for combo explosion"
+    },
+    {
+      "id": "LG-ACC-09",
+      "label": "LG accessory 9",
+      "hex": "#4a4a4a",
+      "category": [
+        "accessory"
+      ],
+      "formality": "casual",
+      "fit": "regular",
+      "warmth": "light",
+      "length": "regular",
+      "seasons": [
+        "spring",
+        "summer",
+        "fall",
+        "winter"
+      ],
+      "isNeutral": true,
+      "lastWorn": null,
+      "notes": "Neutral accessory for combo explosion"
+    },
+    {
+      "id": "LG-ACC-10",
+      "label": "LG accessory 10",
+      "hex": "#505050",
+      "category": [
+        "accessory"
+      ],
+      "formality": "casual",
+      "fit": "regular",
+      "warmth": "light",
+      "length": "regular",
+      "seasons": [
+        "spring",
+        "summer",
+        "fall",
+        "winter"
+      ],
+      "isNeutral": true,
+      "lastWorn": null,
+      "notes": "Neutral accessory for combo explosion"
+    },
+    {
+      "id": "LG-ACC-11",
+      "label": "LG accessory 11",
+      "hex": "#565656",
+      "category": [
+        "accessory"
+      ],
+      "formality": "casual",
+      "fit": "regular",
+      "warmth": "light",
+      "length": "regular",
+      "seasons": [
+        "spring",
+        "summer",
+        "fall",
+        "winter"
+      ],
+      "isNeutral": true,
+      "lastWorn": null,
+      "notes": "Neutral accessory for combo explosion"
+    },
+    {
+      "id": "LG-ACC-12",
+      "label": "LG accessory 12",
+      "hex": "#5c5c5c",
+      "category": [
+        "accessory"
+      ],
+      "formality": "casual",
+      "fit": "regular",
+      "warmth": "light",
+      "length": "regular",
+      "seasons": [
+        "spring",
+        "summer",
+        "fall",
+        "winter"
+      ],
+      "isNeutral": true,
+      "lastWorn": null,
+      "notes": "Neutral accessory for combo explosion"
+    },
+    {
+      "id": "LG-ACC-13",
+      "label": "LG accessory 13",
+      "hex": "#626262",
+      "category": [
+        "accessory"
+      ],
+      "formality": "casual",
+      "fit": "regular",
+      "warmth": "light",
+      "length": "regular",
+      "seasons": [
+        "spring",
+        "summer",
+        "fall",
+        "winter"
+      ],
+      "isNeutral": true,
+      "lastWorn": null,
+      "notes": "Neutral accessory for combo explosion"
+    },
+    {
+      "id": "LG-ACC-14",
+      "label": "LG accessory 14",
+      "hex": "#686868",
+      "category": [
+        "accessory"
+      ],
+      "formality": "casual",
+      "fit": "regular",
+      "warmth": "light",
+      "length": "regular",
+      "seasons": [
+        "spring",
+        "summer",
+        "fall",
+        "winter"
+      ],
+      "isNeutral": true,
+      "lastWorn": null,
+      "notes": "Neutral accessory for combo explosion"
+    },
+    {
+      "id": "LG-ACC-15",
+      "label": "LG accessory 15",
+      "hex": "#6e6e6e",
+      "category": [
+        "accessory"
+      ],
+      "formality": "casual",
+      "fit": "regular",
+      "warmth": "light",
+      "length": "regular",
+      "seasons": [
+        "spring",
+        "summer",
+        "fall",
+        "winter"
+      ],
+      "isNeutral": true,
+      "lastWorn": null,
+      "notes": "Neutral accessory for combo explosion"
+    },
+    {
+      "id": "LG-ACC-16",
+      "label": "LG accessory 16",
+      "hex": "#747474",
+      "category": [
+        "accessory"
+      ],
+      "formality": "casual",
+      "fit": "regular",
+      "warmth": "light",
+      "length": "regular",
+      "seasons": [
+        "spring",
+        "summer",
+        "fall",
+        "winter"
+      ],
+      "isNeutral": true,
+      "lastWorn": null,
+      "notes": "Neutral accessory for combo explosion"
+    },
+    {
+      "id": "LG-ACC-17",
+      "label": "LG accessory 17",
+      "hex": "#7a7a7a",
+      "category": [
+        "accessory"
+      ],
+      "formality": "casual",
+      "fit": "regular",
+      "warmth": "light",
+      "length": "regular",
+      "seasons": [
+        "spring",
+        "summer",
+        "fall",
+        "winter"
+      ],
+      "isNeutral": true,
+      "lastWorn": null,
+      "notes": "Neutral accessory for combo explosion"
+    },
+    {
+      "id": "LG-ACC-18",
+      "label": "LG accessory 18",
+      "hex": "#808080",
+      "category": [
+        "accessory"
+      ],
+      "formality": "casual",
+      "fit": "regular",
+      "warmth": "light",
+      "length": "regular",
+      "seasons": [
+        "spring",
+        "summer",
+        "fall",
+        "winter"
+      ],
+      "isNeutral": true,
+      "lastWorn": null,
+      "notes": "Neutral accessory for combo explosion"
+    },
+    {
+      "id": "LG-ACC-19",
+      "label": "LG accessory 19",
+      "hex": "#868686",
+      "category": [
+        "accessory"
+      ],
+      "formality": "casual",
+      "fit": "regular",
+      "warmth": "light",
+      "length": "regular",
+      "seasons": [
+        "spring",
+        "summer",
+        "fall",
+        "winter"
+      ],
+      "isNeutral": true,
+      "lastWorn": null,
+      "notes": "Neutral accessory for combo explosion"
+    },
+    {
+      "id": "LG-ACC-20",
+      "label": "LG accessory 20",
+      "hex": "#8c8c8c",
+      "category": [
+        "accessory"
+      ],
+      "formality": "casual",
+      "fit": "regular",
+      "warmth": "light",
+      "length": "regular",
+      "seasons": [
+        "spring",
+        "summer",
+        "fall",
+        "winter"
+      ],
+      "isNeutral": true,
+      "lastWorn": null,
+      "notes": "Neutral accessory for combo explosion"
+    },
+    {
+      "id": "LG-ACC-21",
+      "label": "LG accessory 21",
+      "hex": "#929292",
+      "category": [
+        "accessory"
+      ],
+      "formality": "casual",
+      "fit": "regular",
+      "warmth": "light",
+      "length": "regular",
+      "seasons": [
+        "spring",
+        "summer",
+        "fall",
+        "winter"
+      ],
+      "isNeutral": true,
+      "lastWorn": null,
+      "notes": "Neutral accessory for combo explosion"
+    },
+    {
+      "id": "LG-ACC-22",
+      "label": "LG accessory 22",
+      "hex": "#989898",
+      "category": [
+        "accessory"
+      ],
+      "formality": "casual",
+      "fit": "regular",
+      "warmth": "light",
+      "length": "regular",
+      "seasons": [
+        "spring",
+        "summer",
+        "fall",
+        "winter"
+      ],
+      "isNeutral": true,
+      "lastWorn": null,
+      "notes": "Neutral accessory for combo explosion"
+    },
+    {
+      "id": "LG-ACC-23",
+      "label": "LG accessory 23",
+      "hex": "#9e9e9e",
+      "category": [
+        "accessory"
+      ],
+      "formality": "casual",
+      "fit": "regular",
+      "warmth": "light",
+      "length": "regular",
+      "seasons": [
+        "spring",
+        "summer",
+        "fall",
+        "winter"
+      ],
+      "isNeutral": true,
+      "lastWorn": null,
+      "notes": "Neutral accessory for combo explosion"
+    },
+    {
+      "id": "LG-ACC-24",
+      "label": "LG accessory 24",
+      "hex": "#a4a4a4",
+      "category": [
+        "accessory"
+      ],
+      "formality": "casual",
+      "fit": "regular",
+      "warmth": "light",
+      "length": "regular",
+      "seasons": [
+        "spring",
+        "summer",
+        "fall",
+        "winter"
+      ],
+      "isNeutral": true,
+      "lastWorn": null,
+      "notes": "Neutral accessory for combo explosion"
+    },
+    {
+      "id": "LG-ACC-25",
+      "label": "LG accessory 25",
+      "hex": "#aaaaaa",
+      "category": [
+        "accessory"
+      ],
+      "formality": "casual",
+      "fit": "regular",
+      "warmth": "light",
+      "length": "regular",
+      "seasons": [
+        "spring",
+        "summer",
+        "fall",
+        "winter"
+      ],
+      "isNeutral": true,
+      "lastWorn": null,
+      "notes": "Neutral accessory for combo explosion"
+    },
+    {
+      "id": "LG-ACC-26",
+      "label": "LG accessory 26",
+      "hex": "#b0b0b0",
+      "category": [
+        "accessory"
+      ],
+      "formality": "casual",
+      "fit": "regular",
+      "warmth": "light",
+      "length": "regular",
+      "seasons": [
+        "spring",
+        "summer",
+        "fall",
+        "winter"
+      ],
+      "isNeutral": true,
+      "lastWorn": null,
+      "notes": "Neutral accessory for combo explosion"
+    },
+    {
+      "id": "LG-ACC-27",
+      "label": "LG accessory 27",
+      "hex": "#b6b6b6",
+      "category": [
+        "accessory"
+      ],
+      "formality": "casual",
+      "fit": "regular",
+      "warmth": "light",
+      "length": "regular",
+      "seasons": [
+        "spring",
+        "summer",
+        "fall",
+        "winter"
+      ],
+      "isNeutral": true,
+      "lastWorn": null,
+      "notes": "Neutral accessory for combo explosion"
+    },
+    {
+      "id": "LG-ACC-28",
+      "label": "LG accessory 28",
+      "hex": "#bcbcbc",
+      "category": [
+        "accessory"
+      ],
+      "formality": "casual",
+      "fit": "regular",
+      "warmth": "light",
+      "length": "regular",
+      "seasons": [
+        "spring",
+        "summer",
+        "fall",
+        "winter"
+      ],
+      "isNeutral": true,
+      "lastWorn": null,
+      "notes": "Neutral accessory for combo explosion"
+    },
+    {
+      "id": "LG-ACC-29",
+      "label": "LG accessory 29",
+      "hex": "#c2c2c2",
+      "category": [
+        "accessory"
+      ],
+      "formality": "casual",
+      "fit": "regular",
+      "warmth": "light",
+      "length": "regular",
+      "seasons": [
+        "spring",
+        "summer",
+        "fall",
+        "winter"
+      ],
+      "isNeutral": true,
+      "lastWorn": null,
+      "notes": "Neutral accessory for combo explosion"
+    },
+    {
+      "id": "LG-ACC-30",
+      "label": "LG accessory 30",
+      "hex": "#c8c8c8",
+      "category": [
+        "accessory"
+      ],
+      "formality": "casual",
+      "fit": "regular",
+      "warmth": "light",
+      "length": "regular",
+      "seasons": [
+        "spring",
+        "summer",
+        "fall",
+        "winter"
+      ],
+      "isNeutral": true,
+      "lastWorn": null,
+      "notes": "Neutral accessory for combo explosion"
+    },
+    {
+      "id": "LG-ACC-31",
+      "label": "LG accessory 31",
+      "hex": "#cecece",
+      "category": [
+        "accessory"
+      ],
+      "formality": "casual",
+      "fit": "regular",
+      "warmth": "light",
+      "length": "regular",
+      "seasons": [
+        "spring",
+        "summer",
+        "fall",
+        "winter"
+      ],
+      "isNeutral": true,
+      "lastWorn": null,
+      "notes": "Neutral accessory for combo explosion"
+    },
+    {
+      "id": "LG-ACC-32",
+      "label": "LG accessory 32",
+      "hex": "#d4d4d4",
+      "category": [
+        "accessory"
+      ],
+      "formality": "casual",
+      "fit": "regular",
+      "warmth": "light",
+      "length": "regular",
+      "seasons": [
+        "spring",
+        "summer",
+        "fall",
+        "winter"
+      ],
+      "isNeutral": true,
+      "lastWorn": null,
+      "notes": "Neutral accessory for combo explosion"
+    },
+    {
+      "id": "LG-ACC-33",
+      "label": "LG accessory 33",
+      "hex": "#dadada",
+      "category": [
+        "accessory"
+      ],
+      "formality": "casual",
+      "fit": "regular",
+      "warmth": "light",
+      "length": "regular",
+      "seasons": [
+        "spring",
+        "summer",
+        "fall",
+        "winter"
+      ],
+      "isNeutral": true,
+      "lastWorn": null,
+      "notes": "Neutral accessory for combo explosion"
+    },
+    {
+      "id": "LG-ACC-34",
+      "label": "LG accessory 34",
+      "hex": "#e0e0e0",
+      "category": [
+        "accessory"
+      ],
+      "formality": "casual",
+      "fit": "regular",
+      "warmth": "light",
+      "length": "regular",
+      "seasons": [
+        "spring",
+        "summer",
+        "fall",
+        "winter"
+      ],
+      "isNeutral": true,
+      "lastWorn": null,
+      "notes": "Neutral accessory for combo explosion"
+    },
+    {
+      "id": "LG-ACC-35",
+      "label": "LG accessory 35",
+      "hex": "#e6e6e6",
+      "category": [
+        "accessory"
+      ],
+      "formality": "casual",
+      "fit": "regular",
+      "warmth": "light",
+      "length": "regular",
+      "seasons": [
+        "spring",
+        "summer",
+        "fall",
+        "winter"
+      ],
+      "isNeutral": true,
+      "lastWorn": null,
+      "notes": "Neutral accessory for combo explosion"
+    }
+  ],
+  "palette": [
+    {
+      "id": "PAL-WARM-SAND",
+      "hex": "#D5BBA7",
+      "label": "Warm Sand"
+    },
+    {
+      "id": "PAL-CARAMEL",
+      "hex": "#BD996F",
+      "label": "Caramel Latte"
+    },
+    {
+      "id": "PAL-OLIVE",
+      "hex": "#8E9B76",
+      "label": "Rich Olive"
+    },
+    {
+      "id": "PAL-COPPER",
+      "hex": "#BA815E",
+      "label": "Copper Rose"
+    },
+    {
+      "id": "PAL-SAGE",
+      "hex": "#708A6D",
+      "label": "Deep Sage"
+    },
+    {
+      "id": "PAL-TEAL",
+      "hex": "#4E8288",
+      "label": "Muted Teal"
+    },
+    {
+      "id": "PAL-NAVY",
+      "hex": "#4D648F",
+      "label": "Warm Navy"
+    },
+    {
+      "id": "PAL-BRONZE",
+      "hex": "#735742",
+      "label": "Chocolate Bronze"
+    },
+    {
+      "id": "PAL-CREAM",
+      "hex": "#EEE0D1",
+      "label": "Cream Whisper"
+    },
+    {
+      "id": "PAL-SAFFRON",
+      "hex": "#DCAB3F",
+      "label": "Saffron Glow"
+    },
+    {
+      "id": "PAL-ROSE",
+      "hex": "#C497A6",
+      "label": "Dusty Rose"
+    },
+    {
+      "id": "PAL-STONE",
+      "hex": "#979797",
+      "label": "Stone Gray"
+    }
+  ]
+}

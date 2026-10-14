@@ -11,6 +11,7 @@ import {
   analyzeLayerStyle,
   comboComfortPenalty,
   comboHasDuplicateSlots,
+  emptyOutfitMessage,
   generateOutfits,
   localDateISO,
   MAX_COMBINATIONS,
@@ -54,6 +55,57 @@ describe('generateOutfits', () => {
       item({ id: 'bottom-1', hex: '#808080', category: 'bottom', isNeutral: true }),
     ]
     expect(generateOutfits(wardrobe, palette)).toEqual([])
+    expect(emptyOutfitMessage(wardrobe)).toBe('Not enough matching pieces yet — add shoes.')
+  })
+
+  it('names every missing required slot, including a season that filters shoes out', () => {
+    expect(emptyOutfitMessage([])).toBe(
+      'Not enough matching pieces yet — add a top, a bottom, and shoes.',
+    )
+    expect(
+      emptyOutfitMessage([item({ id: 'bottom-1', category: 'bottom' })]).endsWith('add a top and shoes.'),
+    ).toBe(true)
+    const summerCloset = [
+      item({ id: 'top-1', category: 'top', seasons: ['summer'] }),
+      item({ id: 'bottom-1', category: 'bottom', seasons: ['summer'] }),
+      item({ id: 'shoes-1', category: 'shoes', seasons: ['winter'] }),
+    ]
+    expect(emptyOutfitMessage(summerCloset, 'any', 'summer')).toBe(
+      'Not enough matching pieces yet — add shoes for summer.',
+    )
+  })
+
+  it('names the formality slots that do not match the filter', () => {
+    const casual = [
+      item({ id: 'top-1', category: 'top', formality: 'casual' }),
+      item({ id: 'bottom-1', category: 'bottom', formality: 'casual' }),
+      item({ id: 'shoes-1', category: 'shoes', formality: 'casual' }),
+    ]
+    expect(emptyOutfitMessage(casual, 'formal')).toBe(
+      'No formal tops, bottoms, or shoes match this filter.',
+    )
+    const missingFormalShoes = [
+      item({ id: 'top-1', category: 'top', formality: 'formal' }),
+      item({ id: 'bottom-1', category: 'bottom', formality: 'formal' }),
+      item({ id: 'shoes-1', category: 'shoes', formality: 'casual' }),
+    ]
+    expect(emptyOutfitMessage(missingFormalShoes, 'formal')).toBe(
+      'No formal shoes match this filter.',
+    )
+  })
+
+  it('keeps the generic sentence when slots exist but the scheme is discarded', () => {
+    const top = chroma.hsl(0, 0.7, 0.45).hex()
+    const bottom = chroma.hsl(100, 0.7, 0.45).hex()
+    const wardrobe = [
+      item({ id: 'top-1', hex: top, category: 'top', isNeutral: false }),
+      item({ id: 'bottom-1', hex: bottom, category: 'bottom', isNeutral: false }),
+      item({ id: 'shoes-1', hex: '#111111', category: 'shoes', isNeutral: true }),
+    ]
+    expect(generateOutfits(wardrobe, palette)).toEqual([])
+    expect(emptyOutfitMessage(wardrobe)).toBe(
+      'Not enough matching pieces yet — add more items or relax the formality or season filter',
+    )
   })
 
   it('defaults missing fit to regular and scores without crashing', () => {

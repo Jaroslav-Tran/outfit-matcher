@@ -1,8 +1,8 @@
 import { isSuggestedNeutral } from './colorUtils.js'
+import { solidColorPngDataUrl } from './imageUtils.js'
 
-function placeholderImage(hex, caption) {
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="240" height="240"><rect width="240" height="240" fill="${hex}"/><text x="120" y="122" text-anchor="middle" fill="#ffffff" font-size="13" font-family="system-ui,sans-serif">${caption}</text></svg>`
-  return `data:image/svg+xml,${encodeURIComponent(svg)}`
+function placeholderImage(hex) {
+  return solidColorPngDataUrl(hex)
 }
 
 export const DEFAULT_PALETTE = [
@@ -20,12 +20,12 @@ export const DEFAULT_PALETTE = [
   { hex: '#979797', label: 'Stone Gray' },
 ]
 
-function piece({ hex, label, category, formality, seasons, isNeutral, caption, fit = 'regular' }) {
+function piece({ hex, label, category, formality, seasons, isNeutral, fit = 'regular' }) {
   return {
     id: crypto.randomUUID(),
-    imageUrl: placeholderImage(hex, caption || label),
+    imageUrl: placeholderImage(hex),
     hex,
-    category,
+    category: Array.isArray(category) ? category : [category],
     formality,
     fit,
     seasons: [...seasons],

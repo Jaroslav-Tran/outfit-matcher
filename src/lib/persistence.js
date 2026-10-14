@@ -18,9 +18,11 @@ function throwIfError(error) {
 
 function extensionFor(blob) {
   const type = blob?.type || ''
+  if (type.includes('svg')) {
+    throw new Error('SVG images are not stored. Use JPEG, PNG, or WebP.')
+  }
   if (type.includes('png')) return { ext: 'png', contentType: 'image/png' }
   if (type.includes('webp')) return { ext: 'webp', contentType: 'image/webp' }
-  if (type.includes('svg')) return { ext: 'svg', contentType: 'image/svg+xml' }
   return { ext: 'jpg', contentType: 'image/jpeg' }
 }
 
@@ -312,7 +314,12 @@ export async function appendSampleData(userId, existingPalette, existingWardrobe
 async function blobFromDisplayUrl(url) {
   const response = await fetch(url)
   const blob = await response.blob()
+  if (String(url).startsWith('data:image/svg') || String(blob.type || '').includes('svg')) {
+    throw new Error('SVG images are not stored. Use JPEG, PNG, or WebP.')
+  }
+  if (String(url).startsWith('data:image/png')) {
+    return blob.type === 'image/png' ? blob : new Blob([blob], { type: 'image/png' })
+  }
   if (blob.type && blob.type !== 'application/octet-stream') return blob
-  if (url.startsWith('data:image/svg')) return new Blob([blob], { type: 'image/svg+xml' })
   return new Blob([blob], { type: 'image/jpeg' })
 }

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import SegmentedControl from './SegmentedControl.jsx'
-import { generateOutfitsAsync, localDateISO } from '../lib/outfitGenerator.js'
+import { emptyOutfitMessage, generateOutfitsAsync, localDateISO } from '../lib/outfitGenerator.js'
 import { SCHEME_LABELS } from '../lib/colorUtils.js'
 import { FORMALITIES, SEASONS, fitLabel } from '../lib/constants.js'
 import {
@@ -247,8 +247,7 @@ export default function OutfitTab({
         <p className="empty">Choose filters and click Generate.</p>
       ) : results.length === 0 ? (
         <p className="empty notice">
-          Not enough matching pieces yet — add more items or relax the formality
-          or season filter
+          {emptyOutfitMessage(wardrobe, formalityFilter, seasonFilter)}
         </p>
       ) : (
         <ol className="outfit-list">

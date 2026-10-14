@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import BulkUploadSection from './BulkUploadSection.jsx'
+import Dialog from './Dialog.jsx'
 import CategoryPills from './CategoryPills.jsx'
 import SegmentedControl from './SegmentedControl.jsx'
 import SeasonPills from './SeasonPills.jsx'
@@ -27,6 +28,7 @@ import {
   normalizeCategories,
   primaryCategory,
 } from '../lib/constants.js'
+import { localDateISO } from '../lib/outfitGenerator.js'
 import { SuggestLimitError, suggestTagsFromPhoto } from '../lib/suggestTags.js'
 import { release, tryAcquire } from '../lib/submitLock.js'
 
@@ -76,17 +78,184 @@ function ColorSuggestions({ photoColors, palette, hex, onPick }) {
   )
 }
 
-function WardrobeItemCard({ item, open, onToggle, onUpdateItem, onRemoveItem, onImageError }) {
+function draftFromItem(item) {
+  const categories = normalizeCategories(item.category)
+  return {
+    hex: item.hex || '#808080',
+    label: item.label || '',
+    categories: categories.length ? categories : ['top'],
+    formality: item.formality || 'casual',
+    fit: item.fit || 'regular',
+    warmth: item.warmth || '',
+    length: item.length || '',
+    seasons: [...(item.seasons || [])],
+    isNeutral: Boolean(item.isNeutral),
+  }
+}
+
+function WardrobeItemEditor({ item, onUpdateItem }) {
+  const [draft, setDraft] = useState(() => draftFromItem(item))
+  const [error, setError] = useState('')
+  const [saving, setSaving] = useState(false)
+  const fitCategory = primaryCategory({ category: draft.categories })
+  const pickerValue = isValidHex(draft.hex) ? toHex(draft.hex) : '#808080'
+
+  function patchDraft(partial) {
+    setDraft((current) => ({ ...current, ...partial }))
+  }
+
+  async function handleSave(event) {
+    event.preventDefault()
+    const hex = toHex(draft.hex)
+    if (!hex) {
+      setError('Enter a valid hex color.')
+      return
+    }
+    const categories = normalizeCategories(draft.categories)
+    if (!categories.length) {
+      setError('Tag at least one category.')
+      return
+    }
+    setSaving(true)
+    setError('')
+    try {
+      await onUpdateItem(item.id, {
+        hex,
+        label: draft.label.trim() || null,
+        category: categories,
+        formality: draft.formality,
+        fit: draft.fit,
+        warmth: draft.warmth,
+        length: draft.length,
+        seasons: draft.seasons,
+        isNeutral: draft.isNeutral,
+      })
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <form className="item-editor" onSubmit={handleSave}>
+      <div className="color-row">
+        <label className="field">
+          <span>Color</span>
+          <input
+            type="color"
+            value={pickerValue}
+            onChange={(event) => patchDraft({ hex: event.target.value })}
+          />
+        </label>
+        <label className="field grow">
+          <span>Hex</span>
+          <input
+            className="tabular"
+            type="text"
+            value={draft.hex}
+            onChange={(event) => patchDraft({ hex: event.target.value })}
+            spellCheck="false"
+          />
+        </label>
+        <label className="field grow">
+          <span>Label</span>
+          <input
+            type="text"
+            value={draft.label}
+            onChange={(event) => patchDraft({ label: event.target.value })}
+            placeholder="grey wool sweater"
+          />
+        </label>
+      </div>
+
+      <CategoryPills value={draft.categories} onChange={(categories) => patchDraft({ categories })} />
+
+      <div className="picker-stack">
+        <div className="picker-block">
+          <span className="picker-label">Formality</span>
+          <SegmentedControl
+            size="sm"
+            ariaLabel="Formality"
+            options={FORMALITIES.map((value) => ({ value, label: value }))}
+            value={draft.formality}
+            onChange={(formality) => patchDraft({ formality })}
+          />
+        </div>
+        <div className="picker-block">
+          <span className="picker-label">{fitCategory === 'shoes' ? 'Fit (footwear)' : 'Fit'}</span>
+          <SegmentedControl
+            size="sm"
+            ariaLabel="Fit"
+            options={FITS.map((value) => ({
+              value,
+              label: fitLabel(value, fitCategory),
+            }))}
+            value={draft.fit}
+            onChange={(fit) => patchDraft({ fit })}
+          />
+        </div>
+        <div className="color-row">
+          <label className="field grow">
+            <span>Warmth</span>
+            <select
+              className="select-native"
+              value={draft.warmth}
+              onChange={(event) => patchDraft({ warmth: event.target.value })}
+            >
+              <option value="">Not set</option>
+              {WARMTHS.map((value) => (
+                <option key={value} value={value}>
+                  {value}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="field grow">
+            <span>Length</span>
+            <select
+              className="select-native"
+              value={draft.length}
+              onChange={(event) => patchDraft({ length: event.target.value })}
+            >
+              <option value="">Not set</option>
+              {LENGTHS.map((value) => (
+                <option key={value} value={value}>
+                  {value}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+        <Switch
+          checked={draft.isNeutral}
+          label="Neutral"
+          onChange={(isNeutral) => patchDraft({ isNeutral })}
+        />
+        <p className="hint">
+          Neutral means a base color, such as black, white, grey, or beige. It does not use one of
+          the two statement-color slots in an outfit.
+        </p>
+      </div>
+
+      <SeasonPills
+        legend="Good for"
+        value={draft.seasons}
+        onChange={(seasons) => patchDraft({ seasons })}
+      />
+
+      {error ? <p className="error">{error}</p> : null}
+      <button type="submit" className="primary" disabled={saving}>
+        {saving ? 'Saving…' : 'Save changes'}
+      </button>
+    </form>
+  )
+}
+
+function WardrobeItemCard({ item, onToggle, onImageError }) {
   const home = homeCategory(item)
   const extras = extraCategories(item)
   return (
-    <li className={`item-card-wrap${open ? ' is-open' : ''}`}>
-      <button
-        type="button"
-        className="item-card"
-        aria-expanded={open}
-        onClick={onToggle}
-      >
+    <li className="item-card-wrap">
+      <button type="button" className="item-card" onClick={onToggle}>
         <div className="item-card-media">
           <img
             src={item.imageUrl}
@@ -96,7 +265,7 @@ function WardrobeItemCard({ item, open, onToggle, onUpdateItem, onRemoveItem, on
           <div className="item-card-scrim" aria-hidden="true" />
         </div>
         <span className="item-card-chevron" aria-hidden="true">
-          {open ? '▾' : '›'}
+          ›
         </span>
         <div className="item-card-overlay">
           <div className="item-card-tags">
@@ -119,40 +288,6 @@ function WardrobeItemCard({ item, open, onToggle, onUpdateItem, onRemoveItem, on
           <p className="item-card-title">{item.label || item.hex}</p>
         </div>
       </button>
-
-      <div className="item-card-details">
-        <Switch
-          checked={item.isNeutral}
-          label="Neutral"
-          onChange={(checked) => onUpdateItem(item.id, { isNeutral: checked })}
-        />
-        <SeasonPills
-          legend="Good for"
-          value={item.seasons || []}
-          onChange={(next) => onUpdateItem(item.id, { seasons: next })}
-        />
-        {item.lastWorn ? (
-          <p className="hint">
-            Last worn {item.lastWorn}.{' '}
-            <button
-              type="button"
-              className="linkish"
-              onClick={() => onUpdateItem(item.id, { lastWorn: null })}
-            >
-              Clear worn date
-            </button>
-          </p>
-        ) : (
-          <p className="hint">Never marked as worn.</p>
-        )}
-        <button
-          type="button"
-          className="danger-outline"
-          onClick={() => onRemoveItem(item.id)}
-        >
-          Delete
-        </button>
-      </div>
     </li>
   )
 }
@@ -160,6 +295,7 @@ function WardrobeItemCard({ item, open, onToggle, onUpdateItem, onRemoveItem, on
 export default function WardrobeTab({
   wardrobe,
   palette = [],
+  userId = null,
   onAddItem,
   onRemoveItem,
   onUpdateItem,
@@ -189,6 +325,7 @@ export default function WardrobeTab({
   const confirmTimer = useRef(null)
   const addLockRef = useRef(false)
   const draftIdRef = useRef(null)
+  const editingItem = wardrobe.find((item) => item.id === openId) || null
 
   const pickerValue = isValidHex(hex) ? toHex(hex) : '#808080'
 
@@ -360,7 +497,7 @@ export default function WardrobeTab({
           <span>Photo (single)</span>
           <input
             type="file"
-            accept="image/*"
+            accept="image/*,.heic,.heif,image/heic,image/heif"
             capture="environment"
             disabled={hydrating}
             onChange={handleFileChange}
@@ -468,6 +605,10 @@ export default function WardrobeTab({
             </label>
           </div>
           <Switch checked={isNeutral} label="Neutral" onChange={setIsNeutral} />
+          <p className="hint">
+            Neutral means a base color, such as black, white, grey, or beige. It does not use one of
+            the two statement-color slots in an outfit.
+          </p>
         </div>
         <p className="hint">
           Formality is your tag unless auto-suggest fills it: casual = everyday,
@@ -489,6 +630,7 @@ export default function WardrobeTab({
       <BulkUploadSection
         wardrobe={wardrobe}
         palette={palette}
+        userId={userId}
         onAddItem={onAddItem}
         disabled={hydrating}
       />
@@ -527,10 +669,7 @@ export default function WardrobeTab({
                 <WardrobeItemCard
                   key={item.id}
                   item={item}
-                  open={openId === item.id}
-                  onToggle={() => setOpenId((current) => (current === item.id ? null : item.id))}
-                  onUpdateItem={onUpdateItem}
-                  onRemoveItem={onRemoveItem}
+                  onToggle={() => setOpenId(item.id)}
                   onImageError={onImageError}
                 />
               ))}
@@ -538,6 +677,47 @@ export default function WardrobeTab({
           </div>
         ))
       )}
+      {editingItem ? (
+        <Dialog
+          title={editingItem.label || 'Edit item'}
+          onClose={() => setOpenId(null)}
+        >
+          <WardrobeItemEditor item={editingItem} onUpdateItem={onUpdateItem} />
+          {editingItem.lastWorn ? (
+            <p className="hint">Last worn {editingItem.lastWorn}.</p>
+          ) : (
+            <p className="hint">Never marked as worn.</p>
+          )}
+          {editingItem.lastWorn === localDateISO() ? null : (
+            <button
+              type="button"
+              className="secondary"
+              onClick={() => onUpdateItem(editingItem.id, { lastWorn: localDateISO() })}
+            >
+              Mark as worn
+            </button>
+          )}
+          {editingItem.lastWorn ? (
+            <button
+              type="button"
+              className="linkish"
+              onClick={() => onUpdateItem(editingItem.id, { lastWorn: null })}
+            >
+              Clear worn date
+            </button>
+          ) : null}
+          <button
+            type="button"
+            className="danger-outline"
+            onClick={() => {
+              onRemoveItem(editingItem.id)
+              setOpenId(null)
+            }}
+          >
+            Delete
+          </button>
+        </Dialog>
+      ) : null}
     </section>
   )
 }

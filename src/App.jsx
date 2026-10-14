@@ -1,5 +1,6 @@
 import { lazy, Suspense, useEffect, useRef, useState } from 'react'
 import AuthScreen from './components/AuthScreen.jsx'
+import ExportDialog from './components/ExportDialog.jsx'
 import SegmentedControl from './components/SegmentedControl.jsx'
 import ThemeToggle from './components/ThemeToggle.jsx'
 
@@ -27,8 +28,9 @@ import {
   signUrl,
   updateWardrobeItemRow,
 } from './lib/persistence.js'
-import { downloadJson, exportFilename, fetchClosetExport } from './lib/exportCloset.js'
+import { downloadJson, exportFilename, fetchClosetExport, shapeClosetExport } from './lib/exportCloset.js'
 import { localDateISO } from './lib/outfitGenerator.js'
+import { getStoredTab, persistTab } from './lib/tabs.js'
 import { dedupePaletteColors, normalizePaletteHex, paletteHasHex } from './lib/colorUtils.js'
 import { tryBeginResign, urlsAreStale } from './lib/signedUrlRefresh.js'
 import './App.css'
@@ -40,7 +42,7 @@ const TAB_OPTIONS = [
 ]
 
 function App() {
-  const [tab, setTab] = useState('palette')
+  const [tab, setTab] = useState(() => getStoredTab())
   const [user, setUser] = useState(null)
   const [authReady, setAuthReady] = useState(!supabaseConfigured)
   const [hydrating, setHydrating] = useState(false)
@@ -49,8 +51,9 @@ function App() {
   const [wardrobe, setWardrobe] = useState([])
   const [persistError, setPersistError] = useState('')
   const [exporting, setExporting] = useState(false)
+  const [exportOpen, setExportOpen] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
-  const [mountedTabs, setMountedTabs] = useState(() => new Set(['palette']))
+  const [mountedTabs, setMountedTabs] = useState(() => new Set([getStoredTab()]))
   const { preference: themePreference, cyclePreference } = useTheme()
   const menuRef = useRef(null)
   const wardrobeRef = useRef(wardrobe)
@@ -67,6 +70,7 @@ function App() {
   }, [])
 
   useEffect(() => {
+    persistTab(tab)
     setMountedTabs((prev) => {
       if (prev.has(tab)) return prev
       const next = new Set(prev)
@@ -370,13 +374,14 @@ function App() {
     }
   }
 
-  async function exportCloset() {
+  async function confirmExport(options) {
     setPersistError('')
     setExporting(true)
-    setMenuOpen(false)
     try {
       const payload = await fetchClosetExport(user.id)
-      downloadJson(exportFilename(new Date(payload.exported_at)), payload)
+      const shaped = shapeClosetExport(payload, options)
+      downloadJson(exportFilename(new Date(shaped.exported_at)), shaped)
+      setExportOpen(false)
     } catch (error) {
       setPersistError(error.message || 'Could not export your closet.')
     } finally {
@@ -456,7 +461,15 @@ function App() {
               {menuOpen ? (
                 <div className="account-menu-panel" role="menu">
                   <div className="account-menu-email">{user.email}</div>
-                  <button type="button" role="menuitem" disabled={exporting} onClick={exportCloset}>
+                  <button
+                    type="button"
+                    role="menuitem"
+                    disabled={exporting}
+                    onClick={() => {
+                      setMenuOpen(false)
+                      setExportOpen(true)
+                    }}
+                  >
                     {exporting ? 'Exporting…' : 'Export'}
                   </button>
                   <button type="button" role="menuitem" className="danger-text" onClick={signOut}>
@@ -502,6 +515,7 @@ function App() {
             <WardrobeTab
               wardrobe={wardrobe}
               palette={palette}
+              userId={user.id}
               onAddItem={addWardrobeItem}
               onRemoveItem={removeWardrobeItem}
               onUpdateItem={updateWardrobeItem}
@@ -524,6 +538,15 @@ function App() {
           </div>
         ) : null}
       </Suspense>
+      {exportOpen ? (
+        <ExportDialog
+          exporting={exporting}
+          onClose={() => {
+            if (!exporting) setExportOpen(false)
+          }}
+          onExport={confirmExport}
+        />
+      ) : null}
     </div>
   )
 }

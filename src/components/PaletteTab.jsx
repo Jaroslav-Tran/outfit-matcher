@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react'
 import {
   extractPaletteFromImageData,
+  findPaletteColorByHex,
   hueFamilyName,
-  isNearExistingColor,
   isValidHex,
+  normalizePaletteHex,
+  paletteHasHex,
   toHex,
 } from '../lib/colorUtils.js'
 import { fileToResizedImage, revokeIfBlobUrl } from '../lib/imageUtils.js'
@@ -23,6 +25,7 @@ export default function PaletteTab({
   const [extracted, setExtracted] = useState([])
   const [selected, setSelected] = useState(() => new Set())
   const [extracting, setExtracting] = useState(false)
+  const [saving, setSaving] = useState(false)
 
   useEffect(() => {
     return () => revokeIfBlobUrl(localReferenceUrl)
@@ -30,7 +33,7 @@ export default function PaletteTab({
 
   const pickerValue = isValidHex(hex) ? toHex(hex) : '#c08081'
   const referenceUrl = localReferenceUrl || savedReferenceUrl
-  const newExtracted = extracted.filter((color) => !isNearExistingColor(color.hex, palette))
+  const newExtracted = extracted.filter((color) => !paletteHasHex(color.hex, palette))
   const selectedNew = newExtracted.filter((color) => selected.has(color.hex))
 
   async function handleReferenceUpload(event) {
@@ -69,7 +72,7 @@ export default function PaletteTab({
   }
 
   function handleExtractedClick(color) {
-    const saved = palette.find((entry) => isNearExistingColor(color.hex, [entry]))
+    const saved = findPaletteColorByHex(color.hex, palette)
     if (saved) {
       onRemoveColor(saved.id)
       return
@@ -77,44 +80,65 @@ export default function PaletteTab({
     toggleExtracted(color.hex)
   }
 
-  function addExtracted(colors) {
-    const toAdd = colors
-      .filter((color) => !isNearExistingColor(color.hex, palette))
-      .map((color) => ({
+  async function addExtracted(colors) {
+    const seen = new Set(
+      palette.map((entry) => normalizePaletteHex(entry.hex)).filter(Boolean),
+    )
+    const toAdd = []
+    for (const color of colors) {
+      const normalized = normalizePaletteHex(color.hex)
+      if (!normalized || seen.has(normalized)) continue
+      seen.add(normalized)
+      toAdd.push({
         id: crypto.randomUUID(),
-        hex: color.hex,
-        label: hueFamilyName(color.hex),
-      }))
+        hex: normalized,
+        label: hueFamilyName(normalized),
+      })
+    }
     if (!toAdd.length) {
       setError('Those colors are already in your palette.')
       return
     }
     setError('')
-    onAddColors(toAdd)
-    setSelected((current) => {
-      const added = new Set(toAdd.map((color) => color.hex))
-      return new Set([...current].filter((value) => !added.has(value)))
-    })
+    setSaving(true)
+    try {
+      await onAddColors(toAdd)
+      setSelected((current) => {
+        const added = new Set(toAdd.map((color) => color.hex))
+        return new Set([...current].filter((value) => !added.has(value)))
+      })
+    } finally {
+      setSaving(false)
+    }
   }
 
-  function handleAdd(event) {
+  async function handleAdd(event) {
     event.preventDefault()
     if (!isValidHex(hex)) {
       setError('Enter a valid hex color (e.g. #c08081).')
       return
     }
-    const normalized = toHex(hex)
-    if (isNearExistingColor(normalized, palette)) {
+    const normalized = normalizePaletteHex(hex)
+    if (!normalized) {
+      setError('Enter a valid hex color (e.g. #c08081).')
+      return
+    }
+    if (paletteHasHex(normalized, palette)) {
       setError('That color is already in your palette.')
       return
     }
-    onAddColor({
-      id: crypto.randomUUID(),
-      hex: normalized,
-      label: label.trim() || undefined,
-    })
-    setLabel('')
     setError('')
+    setSaving(true)
+    try {
+      await onAddColor({
+        id: crypto.randomUUID(),
+        hex: normalized,
+        label: label.trim() || undefined,
+      })
+      setLabel('')
+    } finally {
+      setSaving(false)
+    }
   }
 
   return (
@@ -129,7 +153,11 @@ export default function PaletteTab({
       <div className="form-grid">
         <label className="field">
           <span>Color analysis screenshot</span>
-          <input type="file" accept="image/*" onChange={handleReferenceUpload} />
+          <input
+            type="file"
+            accept="image/*,.heic,.heif,image/heic,image/heif"
+            onChange={handleReferenceUpload}
+          />
         </label>
         {extracting ? <p className="hint">Reading swatches and saving the screenshot…</p> : null}
         {referenceUrl ? (
@@ -149,7 +177,7 @@ export default function PaletteTab({
             </p>
             <ul className="extract-grid">
               {extracted.map((color) => {
-                const already = isNearExistingColor(color.hex, palette)
+                const already = paletteHasHex(color.hex, palette)
                 return (
                   <li key={color.hex}>
                     <button
@@ -168,14 +196,15 @@ export default function PaletteTab({
               <button
                 type="button"
                 className="secondary"
-                disabled={!selectedNew.length}
+                disabled={saving || !selectedNew.length}
                 onClick={() => addExtracted(selectedNew)}
               >
                 Add selected ({selectedNew.length})
               </button>
               <button
                 type="button"
-                disabled={!newExtracted.length}
+                className="secondary"
+                disabled={saving || !newExtracted.length}
                 onClick={() => addExtracted(newExtracted)}
               >
                 Add all new
@@ -197,6 +226,7 @@ export default function PaletteTab({
             <label className="field grow">
               <span>Hex</span>
               <input
+                className="tabular"
                 type="text"
                 value={hex}
                 onChange={(event) => setHex(event.target.value)}
@@ -215,7 +245,9 @@ export default function PaletteTab({
             </label>
           </div>
           {error ? <p className="error">{error}</p> : null}
-          <button type="submit">Add to palette</button>
+          <button type="submit" className="primary" disabled={saving}>
+            {saving ? 'Saving…' : 'Add to palette'}
+          </button>
         </form>
       </div>
 
@@ -225,18 +257,24 @@ export default function PaletteTab({
         <ul className="swatch-list">
           {palette.map((color) => (
             <li key={color.id} className="swatch">
-              <span className="swatch-chip" style={{ background: color.hex }} />
-              <div>
-                <strong>{color.label || color.hex}</strong>
-                {color.label ? <div className="muted">{color.hex}</div> : null}
+              <div className="swatch-body">
+                <span className="swatch-chip" style={{ background: color.hex }} />
+                <div className="swatch-copy">
+                  <strong>{color.label || color.hex}</strong>
+                  {color.label ? (
+                    <div className="muted tabular">{color.hex}</div>
+                  ) : null}
+                </div>
               </div>
-              <button
-                type="button"
-                className="remove-btn"
-                onClick={() => onRemoveColor(color.id)}
-              >
-                Remove
-              </button>
+              <div className="swatch-actions">
+                <button
+                  type="button"
+                  className="swatch-remove"
+                  onClick={() => onRemoveColor(color.id)}
+                >
+                  Remove
+                </button>
+              </div>
             </li>
           ))}
         </ul>
