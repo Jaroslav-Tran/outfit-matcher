@@ -317,6 +317,7 @@ function App() {
     } catch (error) {
       setWardrobe(previous)
       setPersistError(error.message || 'Could not update that item.')
+      throw error
     }
   }
 

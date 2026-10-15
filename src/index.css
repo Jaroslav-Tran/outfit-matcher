@@ -7,6 +7,11 @@
   --accent: #3d4a5c;
   --accent-ink: #ffffff;
   --danger: #a3402f;
+  --danger-ink: #ffffff;
+  --save-pending: #e6b31a;
+  --save-pending-ink: #1c1b19;
+  --save-done: #1f7a42;
+  --save-done-ink: #ffffff;
 
   --font-sans: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display',
     'Inter', sans-serif;
@@ -34,6 +39,11 @@
   --accent: #7c8ca3;
   --accent-ink: #141311;
   --danger: #d9695a;
+  --danger-ink: #141311;
+  --save-pending: #f0c04a;
+  --save-pending-ink: #141311;
+  --save-done: #3dae66;
+  --save-done-ink: #102416;
 }
 
 *,

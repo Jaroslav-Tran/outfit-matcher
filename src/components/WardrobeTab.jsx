@@ -97,10 +97,22 @@ function WardrobeItemEditor({ item, onUpdateItem }) {
   const [draft, setDraft] = useState(() => draftFromItem(item))
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
+  const savedTimer = useRef(null)
+  const saveSeq = useRef(0)
   const fitCategory = primaryCategory({ category: draft.categories })
   const pickerValue = isValidHex(draft.hex) ? toHex(draft.hex) : '#808080'
 
+  useEffect(() => {
+    return () => {
+      if (savedTimer.current) clearTimeout(savedTimer.current)
+    }
+  }, [])
+
   function patchDraft(partial) {
+    saveSeq.current += 1
+    setSaved(false)
+    if (savedTimer.current) clearTimeout(savedTimer.current)
     setDraft((current) => ({ ...current, ...partial }))
   }
 
@@ -116,7 +128,9 @@ function WardrobeItemEditor({ item, onUpdateItem }) {
       setError('Tag at least one category.')
       return
     }
+    const seq = ++saveSeq.current
     setSaving(true)
+    setSaved(false)
     setError('')
     try {
       await onUpdateItem(item.id, {
@@ -130,6 +144,13 @@ function WardrobeItemEditor({ item, onUpdateItem }) {
         seasons: draft.seasons,
         isNeutral: draft.isNeutral,
       })
+      if (seq !== saveSeq.current) return
+      setSaved(true)
+      if (savedTimer.current) clearTimeout(savedTimer.current)
+      savedTimer.current = setTimeout(() => setSaved(false), 2000)
+    } catch (err) {
+      if (seq !== saveSeq.current) return
+      setError(err.message || 'Could not save those changes.')
     } finally {
       setSaving(false)
     }
@@ -243,8 +264,12 @@ function WardrobeItemEditor({ item, onUpdateItem }) {
       />
 
       {error ? <p className="error">{error}</p> : null}
-      <button type="submit" className="primary" disabled={saving}>
-        {saving ? 'Saving…' : 'Save changes'}
+      <button
+        type="submit"
+        className={`primary${saving ? ' is-saving' : ''}${saved ? ' is-saved' : ''}`}
+        disabled={saving}
+      >
+        {saving ? 'Saving…' : saved ? 'Saved' : 'Save changes'}
       </button>
     </form>
   )
@@ -692,7 +717,9 @@ export default function WardrobeTab({
             <button
               type="button"
               className="secondary"
-              onClick={() => onUpdateItem(editingItem.id, { lastWorn: localDateISO() })}
+              onClick={() => {
+                onUpdateItem(editingItem.id, { lastWorn: localDateISO() }).catch(() => {})
+              }}
             >
               Mark as worn
             </button>
@@ -701,7 +728,9 @@ export default function WardrobeTab({
             <button
               type="button"
               className="linkish"
-              onClick={() => onUpdateItem(editingItem.id, { lastWorn: null })}
+              onClick={() => {
+                onUpdateItem(editingItem.id, { lastWorn: null }).catch(() => {})
+              }}
             >
               Clear worn date
             </button>

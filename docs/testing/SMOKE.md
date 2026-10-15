@@ -2,7 +2,11 @@
 
 Run after a deploy, in the signed-in app. Tick pass / fail / skip. Full click-paths for the *matching* scenario live in `TEST_PLAN.md`.
 
-**Recorded 14 Oct 2026:** checks **1–19** (through **ISO-03**) are tested. Still open: **20**, then the follow-ups **21–26** from the wardrobe popup, bulk review, and export chooser.
+**Recorded 14 Oct 2026:** checks **1–19** (through **ISO-03**) are tested.
+
+**Recorded 15 Oct 2026:** checks **20–24** (GEN-25, UI-07, WARD-14, BULK-07, BULK-08 reload).
+
+**Still open:** **25–30**.
 
 A few IDs here do **not** match the same ID in `TEST_PLAN.md`. Follow this file:
 
@@ -17,7 +21,7 @@ A few IDs here do **not** match the same ID in `TEST_PLAN.md`. Follow this file:
 
 Do this on your real closet only for checks that add or read data. Skip any step that would delete shoes or load `seed-closet.json`.
 
-**Pass:** 1–19 are already recorded. 20–26 pass, or a skip has a written reason.
+**Pass:** 1–24 are already recorded. 25–30 pass, or a skip has a written reason.
 
 ---
 
@@ -103,7 +107,7 @@ Do this on your real closet only for checks that add or read data. Skip any step
 
 1. **What to test.** My Wardrobe → bulk upload. Pick 3 photos. When they are ready, save only one.
 2. **Expected.** That one item is in the wardrobe after reload. The other two stay in the review list and are not in the closet. Each review row shows a photo, color, hex, label, category, and formality. Open a row to edit the rest.
-3. **Edge.** Picking 25 photos queues 20. A large red note under Choose files, and a popup, both say “20 photos queued. 5 not included because of the limit.” Save all skips any row you excluded.
+3. **Edge.** Picking 25 photos queues 20. A large red note under Choose files, and a popup, both say “20 photos queued. 5 not included because of the limit.” **Remove** drops that photo from the review list and does not add it to the wardrobe.
 
 ### 15. EXP-01 — Export is your closet only
 
@@ -144,17 +148,21 @@ curl -si -X POST "https://pfzdquqmwcluswlkqnct.supabase.co/functions/v1/suggest-
 
 ### 20. GEN-25 — Formal filter with only casual clothes
 
+**Tested 15 Oct 2026.**
+
 1. **What to test.** With a closet that can build a casual outfit and has no formal top + bottom + shoes, set formality to Formal and Generate.
 2. **Expected.** “No formal tops, bottoms, or shoes match this filter.” No outfit card built from casual pieces. If only shoes are casual, the notice names shoes alone.
 3. **Edge.** Switch formality back to Any and the casual outfit returns. If you later add a full formal set, Formal shows only that set.
 
 ---
 
-## Follow-ups (not run yet)
+## Follow-ups
 
-These cover behavior added after checks 1–19 were tested.
+Checks **20–24** were tested on 15 Oct 2026. Checks **25–30** are still open.
 
 ### 21. UI-07 — Reload stays on the last tab
+
+**Tested 15 Oct 2026.**
 
 1. **What to test.** Open **My Wardrobe**, then reload the page.
 2. **Expected.** You come back on **My Wardrobe**, with the same account. The page does not reset to **My Palette**.
@@ -162,11 +170,15 @@ These cover behavior added after checks 1–19 were tested.
 
 ### 22. WARD-14 — Edit an item in a popup
 
+**Tested 15 Oct 2026.**
+
 1. **What to test.** On **My Wardrobe**, click a saved tile.
 2. **Expected.** A popup opens over the page. The wardrobe grid stays behind it. You can change label, color, category, formality, fit, warmth, length, seasons, and Neutral, then **Save changes**. After reload, the new values are still on that item.
 3. **Edge.** **Mark as worn** sets today. If it is already worn today, that button is hidden and **Clear worn date** remains. Escape or Close dismisses the popup and does not delete the item.
 
 ### 23. BULK-07 — Short review row and a photo
+
+**Tested 15 Oct 2026.**
 
 1. **What to test.** Bulk-upload a few photos, including one HEIC. Wait until a row is no longer queued or processing.
 2. **Expected.** The row shows a picture, a color swatch, hex, label, category, and formality. The picture is the converted JPEG, not a broken HEIC icon.
@@ -174,18 +186,44 @@ These cover behavior added after checks 1–19 were tested.
 
 ### 24. BULK-08 — Unsaved bulk rows survive reload
 
+**Tested 15 Oct 2026.**
+
 1. **What to test.** Bulk-upload 3 photos. Save one. Leave the other two unsaved. Reload.
 2. **Expected.** The saved item is in the wardrobe grid. The two unsaved rows are still in the bulk review list, and they are not duplicated as saved wardrobe items.
-3. **Edge.** Start a new bulk pick. The previous unsaved rows are replaced by the new batch.
+3. **Edge.** Reload again. Those two unsaved rows are still there once.
 
 ### 25. BULK-09 — More than 20 photos
 
-1. **What to test.** Bulk-upload 25 photos.
-2. **Expected.** A large red line under the file field, and a popup, both say “20 photos queued. 5 not included because of the limit.” The review list has 20 rows.
-3. **Edge.** Close the popup. The red line stays under the file field. **Save all** skips any row you marked **Exclude from save**.
+1. **What to test.** With an empty review list, bulk-upload 25 photos.
+2. **Expected.** A large red line under the file field says “20 photos queued. 5 not included because of the limit.” The popup says “The first 20 were added. These were not:” and lists those 5 file names in the order you selected them. There are no thumbnails. The review list has 20 rows.
+3. **Edge.** Close the popup. The red line stays. Click the red line and the same names open again. A long name is cut with an ellipsis. **OK** stays on screen while the name list scrolls.
 
 ### 26. EXP-04 — Choose what the export includes
 
 1. **What to test.** Account → **Export**. Before the file downloads, uncheck **Image path**, set formality to **casual**, and leave category, season, and warmth empty. Then click **Export** and open the JSON.
 2. **Expected.** The download does not start until you click **Export** in the popup. `schema_version` is `1`. Wardrobe rows have no `image_path`. Only casual items are included. Empty filters do not remove items.
 3. **Edge.** Close the popup without clicking **Export** and no file downloads. The file has no `imageUrl` and no access token. Uncheck **Include palette colors** and `palette` is an empty list.
+
+### 27. WARD-15 — Save changes confirms in yellow, then green
+
+1. **What to test.** Open a wardrobe item, change one tag, and click **Save changes**.
+2. **Expected.** The button turns yellow and reads **Saving…**, then turns green and reads **Saved**. After about 2 seconds it returns to **Save changes**. The popup stays open. The tile behind the popup shows the new tag.
+3. **Edge.** Change a field while the button says **Saved** and it returns to **Save changes** immediately. If the save fails, the button stays the original color and a red error appears under it.
+
+### 28. BULK-10 — Even gaps and names under the review row
+
+1. **What to test.** Bulk-upload a few photos and wait until a row is ready.
+2. **Expected.** The gap is the same between the picture, color swatch, hex code, item name, category, and formality. Under the list, the labels read Picture, Color swatch, Hex code, Item Name, Category, and Formality.
+3. **Edge.** Narrow the window until the hex, category, and formality values hide. Those three labels hide with them.
+
+### 29. BULK-11 — Remove drops a photo from the queue
+
+1. **What to test.** On a ready row, click the red **Remove** button. Repeat from the editor: open a row and click the red **Remove** next to **Save**.
+2. **Expected.** That photo leaves the review list and does not appear in the wardrobe. Reload. It is still gone.
+3. **Edge.** A row that is already saved has no **Remove** button. The wardrobe item stays.
+
+### 30. BULK-12 — A new pick is added to the queue
+
+1. **What to test.** Leave two unsaved photos in the review list. Pick two more.
+2. **Expected.** The first two stay. The new photos are added after them. Nothing already in the list is replaced.
+3. **Edge.** With 18 unsaved photos, pick 5 more. Two are added. The popup says “2 added. The queue already had 18. These were not:” and lists the 3 file names that were left out. The queue then has 20 unsaved photos.

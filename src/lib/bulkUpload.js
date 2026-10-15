@@ -25,12 +25,33 @@ export const BULK_STATES = {
 export function capBatchSize(files, maxCount = MAX_BULK_UPLOAD_COUNT) {
   const list = Array.from(files || [])
   if (list.length <= maxCount) {
-    return { files: list, dropped: 0 }
+    return { files: list, dropped: 0, omitted: [] }
   }
   return {
-    files: list.slice(0, maxCount),
+    files: list.slice(0, Math.max(0, maxCount)),
     dropped: list.length - maxCount,
+    omitted: list.slice(Math.max(0, maxCount)),
   }
+}
+
+/**
+ * Popup copy for files the queue did not accept.
+ * Names stay in selection order. Null when nothing was left out.
+ */
+export function bulkCapDetail({ added, alreadyWaiting, omittedNames }) {
+  const names = (omittedNames || []).map((name) => {
+    const text = String(name || '').trim()
+    return text || 'Untitled photo'
+  })
+  if (!names.length) return null
+  const addedCount = Number(added) || 0
+  const waiting = Number(alreadyWaiting) || 0
+  const leftOut = names.length === 1 ? 'This was not:' : 'These were not:'
+  const lead =
+    waiting > 0
+      ? `${addedCount === 0 ? 'None added' : `${addedCount} added`}. The queue already had ${waiting}. ${leftOut}`
+      : `${addedCount === 1 ? 'The first photo was added.' : `The first ${addedCount} were added.`} ${leftOut}`
+  return { lead, names }
 }
 
 /** Shown when a bulk pick is larger than the cap. Empty when nothing was dropped. */
@@ -205,8 +226,8 @@ export function applyBulkTransition(item, event, payload = {}) {
       }
 
     case 'save':
-      if (item.state !== BULK_STATES.ready || item.excluded) return item
-      return { ...item, state: BULK_STATES.saved }
+      if (item.state !== BULK_STATES.ready) return item
+      return { ...item, state: BULK_STATES.saved, excluded: false }
 
     case 'exclude':
       if (item.state === BULK_STATES.saved) return item

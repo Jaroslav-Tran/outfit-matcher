@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import {
   BULK_STATES,
   applyBulkTransition,
+  bulkCapDetail,
   bulkCapNotice,
   capBatchSize,
   createTrackedConcurrencyLimiter,
@@ -18,16 +19,55 @@ describe('capBatchSize', () => {
     expect(result.dropped).toBe(5)
     expect(result.files[0].name).toBe('f0.jpg')
     expect(result.files[19].name).toBe('f19.jpg')
+    expect(result.omitted.map((file) => file.name)).toEqual([
+      'f20.jpg',
+      'f21.jpg',
+      'f22.jpg',
+      'f23.jpg',
+      'f24.jpg',
+    ])
+  })
+
+  it('fills only the open slots when the queue is partly full', () => {
+    const files = Array.from({ length: 5 }, (_, i) => ({ name: `f${i}.jpg` }))
+    const result = capBatchSize(files, 2)
+    expect(result.files.map((file) => file.name)).toEqual(['f0.jpg', 'f1.jpg'])
+    expect(result.dropped).toBe(3)
+    expect(result.omitted.map((file) => file.name)).toEqual(['f2.jpg', 'f3.jpg', 'f4.jpg'])
   })
 
   it('drops nothing when under the cap', () => {
     const files = Array.from({ length: 3 }, (_, i) => ({ name: `f${i}.jpg` }))
-    expect(capBatchSize(files, 20)).toEqual({ files, dropped: 0 })
+    expect(capBatchSize(files, 20)).toEqual({ files, dropped: 0, omitted: [] })
   })
 
   it('describes how many photos were queued and dropped', () => {
     expect(bulkCapNotice(20, 5)).toBe('20 photos queued. 5 not included because of the limit.')
     expect(bulkCapNotice(3, 0)).toBe('')
+  })
+
+  it('names the left-out files in selection order', () => {
+    expect(
+      bulkCapDetail({
+        added: 20,
+        alreadyWaiting: 0,
+        omittedNames: ['jeans-back.HEIC', 'coat.JPG'],
+      }),
+    ).toEqual({
+      lead: 'The first 20 were added. These were not:',
+      names: ['jeans-back.HEIC', 'coat.JPG'],
+    })
+    expect(
+      bulkCapDetail({
+        added: 2,
+        alreadyWaiting: 18,
+        omittedNames: ['a.jpg', 'b.jpg', 'c.jpg'],
+      }).lead,
+    ).toBe('2 added. The queue already had 18. These were not:')
+    expect(bulkCapDetail({ added: 3, alreadyWaiting: 0, omittedNames: [] })).toBe(null)
+    expect(
+      bulkCapDetail({ added: 0, alreadyWaiting: 20, omittedNames: ['only-one.jpg'] }).lead,
+    ).toBe('None added. The queue already had 20. This was not:')
   })
 })
 

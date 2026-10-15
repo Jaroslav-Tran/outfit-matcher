@@ -243,6 +243,24 @@ button[type='submit'].is-confirming {
   transition: transform 150ms ease-out;
 }
 
+button.primary.is-saving,
+button.primary.is-saving:disabled {
+  background: var(--save-pending);
+  color: var(--save-pending-ink);
+  border-color: var(--save-pending);
+  opacity: 1;
+}
+
+button.primary.is-saved {
+  background: var(--save-done);
+  color: var(--save-done-ink);
+  border-color: var(--save-done);
+}
+
+.item-editor button[type='submit'] {
+  min-width: 9.5rem;
+}
+
 button.secondary,
 button.text-btn {
   background: transparent;
@@ -265,6 +283,12 @@ button.text-btn {
   padding: 8px 4px;
   text-decoration: underline;
   text-underline-offset: 3px;
+}
+
+button.danger {
+  background: var(--danger);
+  color: var(--danger-ink);
+  border-color: var(--danger);
 }
 
 button.danger-outline,
@@ -1098,12 +1122,37 @@ input[type='color'] {
   background: color-mix(in srgb, var(--ink) 8%, var(--surface));
 }
 
-.bulk-cap-message {
+button.bulk-cap-message {
+  display: block;
+  width: 100%;
   margin: var(--space-3) 0 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--danger);
   font-size: 18px;
   font-weight: 650;
   line-height: 1.35;
-  color: var(--danger);
+  text-align: left;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.bulk-cap-names {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 11.5rem;
+  overflow: auto;
+}
+
+.bulk-cap-names li {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 15px;
+  line-height: 1.45;
 }
 
 .bulk-scan {
@@ -1136,10 +1185,9 @@ input[type='color'] {
 .bulk-scan-main {
   flex: 1;
   min-width: 0;
-  display: grid;
-  grid-template-columns: 48px 22px 78px minmax(80px, 1.4fr) minmax(70px, 1fr) auto;
-  gap: 8px;
+  display: flex;
   align-items: center;
+  gap: var(--space-3);
   padding: 0;
   border: 0;
   background: transparent;
@@ -1153,17 +1201,63 @@ input[type='color'] {
 .bulk-scan-photo {
   width: 48px;
   height: 64px;
+  flex: 0 0 48px;
   object-fit: cover;
   border-radius: 6px;
   background: color-mix(in srgb, var(--ink) 8%, var(--surface));
 }
 
+.bulk-scan-main .swatch-chip {
+  width: 36px;
+  height: 36px;
+  flex: 0 0 36px;
+}
+
 .bulk-scan-hex,
 .bulk-scan-label,
 .bulk-scan-meta {
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.bulk-scan-hex {
+  flex: 0 0 auto;
+}
+
+.bulk-scan-meta {
+  flex: 0 1 auto;
+}
+
+.bulk-scan-label {
+  flex: 0 1 auto;
+}
+
+.bulk-scan-actions,
+.bulk-edit-actions {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  margin-left: auto;
+}
+
+.bulk-edit-actions {
+  margin-left: 0;
+  justify-content: flex-start;
+}
+
+.bulk-scan-key {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-3);
+  margin: var(--space-2) 0 0;
+  padding: 0 var(--space-2);
+  color: var(--ink-secondary);
+  font-size: 12px;
+  line-height: 1.3;
 }
 
 .bulk-scan-row .bulk-state {
@@ -1171,12 +1265,9 @@ input[type='color'] {
 }
 
 @media (max-width: 720px) {
-  .bulk-scan-main {
-    grid-template-columns: 48px 22px 1fr auto;
-  }
-
   .bulk-scan-hex,
-  .bulk-scan-meta {
+  .bulk-scan-meta,
+  .bulk-scan-key-wide {
     display: none;
   }
 }

@@ -22,13 +22,14 @@ import {
   normalizeCategories,
   primaryCategory,
 } from '../lib/constants.js'
-import { deleteBulkDraft, listBulkDrafts, replaceBulkDrafts, upsertBulkDraft } from '../lib/bulkDraftStore.js'
+import { deleteBulkDraft, listBulkDrafts, upsertBulkDraft } from '../lib/bulkDraftStore.js'
 import { SuggestLimitError, suggestTagsFromPhoto } from '../lib/suggestTags.js'
 import {
   BULK_STATES,
   BULK_SUGGEST_CONCURRENCY,
   MAX_BULK_UPLOAD_COUNT,
   applyBulkTransition,
+  bulkCapDetail,
   bulkCapNotice,
   capBatchSize,
   createConcurrencyLimiter,
@@ -41,7 +42,6 @@ import {
 import { release, tryAcquire } from '../lib/submitLock.js'
 
 function stateBadge(item) {
-  if (item.excluded && item.state !== BULK_STATES.saved) return 'excluded'
   return item.state
 }
 
@@ -54,7 +54,8 @@ export default function BulkUploadSection({
 }) {
   const [items, setItems] = useState([])
   const [capMessage, setCapMessage] = useState('')
-  const [capDialog, setCapDialog] = useState('')
+  const [capDetail, setCapDetail] = useState(null)
+  const [capDialogOpen, setCapDialogOpen] = useState(false)
   const [editingId, setEditingId] = useState(null)
   const [quotaBanner, setQuotaBanner] = useState('')
   const [savingAll, setSavingAll] = useState(false)
@@ -62,8 +63,8 @@ export default function BulkUploadSection({
   const [confirmingSave, setConfirmingSave] = useState(null)
   const itemsRef = useRef(items)
   itemsRef.current = items
-  const batchIdRef = useRef(0)
   const confirmTimer = useRef(null)
+  const suggestLimitRef = useRef(null)
   const saveAllLockRef = useRef(false)
   const savingIdsRef = useRef(new Set())
   const pickedRef = useRef(false)
@@ -168,6 +169,11 @@ export default function BulkUploadSection({
       const seasons = tags?.seasons?.length ? tags.seasons : [...SEASONS]
       const label = tags?.label || ''
 
+      if (!itemsRef.current.some((entry) => entry.id === item.id)) {
+        revokeIfBlobUrl(processed.objectUrl)
+        return
+      }
+
       updateItem(item.id, (current) =>
         applyBulkTransition(current, 'ready', {
           blob: processed.blob,
@@ -196,12 +202,16 @@ export default function BulkUploadSection({
     }
   }
 
-  async function startProcessing(pending) {
-    const suggestLimit = createConcurrencyLimiter(BULK_SUGGEST_CONCURRENCY)
-    const wrappedSuggest = (task) => suggestLimit(task)
-    const quotaRef = { hit: false }
+  function getSuggestLimit() {
+    if (!suggestLimitRef.current) {
+      suggestLimitRef.current = createConcurrencyLimiter(BULK_SUGGEST_CONCURRENCY)
+    }
+    return suggestLimitRef.current
+  }
 
-    await Promise.all(pending.map((item) => processOne(item, wrappedSuggest, quotaRef)))
+  async function startProcessing(pending) {
+    const quotaRef = { hit: false }
+    await Promise.all(pending.map((item) => processOne(item, getSuggestLimit(), quotaRef)))
   }
   startProcessingRef.current = startProcessing
 
@@ -212,32 +222,42 @@ export default function BulkUploadSection({
     }
     const selected = event.target.files
     if (!selected?.length) return
-    const { files, dropped } = capBatchSize(selected, MAX_BULK_UPLOAD_COUNT)
-    const notice = bulkCapNotice(files.length, dropped)
+    const waiting = itemsRef.current.filter((item) => item.state !== BULK_STATES.saved).length
+    const openSlots = Math.max(0, MAX_BULK_UPLOAD_COUNT - waiting)
+    const { files, dropped, omitted } = capBatchSize(selected, openSlots)
+    const notice = bulkCapNotice(waiting + files.length, dropped)
+    const detail = bulkCapDetail({
+      added: files.length,
+      alreadyWaiting: waiting,
+      omittedNames: (omitted || []).map((file) => file?.name),
+    })
     setCapMessage(notice)
-    setCapDialog(notice)
+    setCapDetail(detail)
+    setCapDialogOpen(Boolean(detail))
     setQuotaBanner('')
     setBatchError('')
 
-    itemsRef.current.forEach((item) => revokeIfBlobUrl(item.previewUrl))
     pickedRef.current = true
-    batchIdRef.current += 1
     const pending = files.map((file) => createPendingBulkItem(file))
-    setItems(pending)
-    setEditingId(null)
+    setItems((current) => [...current, ...pending])
     event.target.value = ''
-    if (userId) replaceBulkDrafts(userId, pending).catch(() => {})
-    startProcessing(pending)
+    if (userId && pending.length) {
+      Promise.all(pending.map((item) => upsertBulkDraft(userId, item))).catch(() => {})
+    }
+    if (pending.length) startProcessing(pending)
   }
 
-  function handleExcludeToggle(item) {
-    updateItem(item.id, (current) =>
-      applyBulkTransition(current, item.excluded ? 'include' : 'exclude'),
-    )
+  function removeFromQueue(item) {
+    if (!item || item.state === BULK_STATES.saved) return
+    if (savingIdsRef.current.has(item.id)) return
+    revokeIfBlobUrl(item.previewUrl)
+    setItems((current) => current.filter((entry) => entry.id !== item.id))
+    if (userId) deleteBulkDraft(item.id).catch(() => {})
+    setEditingId((current) => (current === item.id ? null : current))
   }
 
   async function saveOne(item) {
-    if (item.state !== BULK_STATES.ready || item.excluded || !item.blob) return
+    if (item.state !== BULK_STATES.ready || !item.blob) return
     if (savingIdsRef.current.has(item.id)) return
     savingIdsRef.current.add(item.id)
     if (!isValidHex(item.hex)) {
@@ -293,12 +313,10 @@ export default function BulkUploadSection({
     setSavingAll(true)
     setBatchError('')
     try {
-      const ready = itemsRef.current.filter(
-        (item) => item.state === BULK_STATES.ready && !item.excluded,
-      )
+      const ready = itemsRef.current.filter((item) => item.state === BULK_STATES.ready)
       for (const item of ready) {
         const latest = itemsRef.current.find((entry) => entry.id === item.id)
-        if (!latest || latest.state !== BULK_STATES.ready || latest.excluded) continue
+        if (!latest || latest.state !== BULK_STATES.ready) continue
         await saveOne(latest)
       }
     } finally {
@@ -309,14 +327,11 @@ export default function BulkUploadSection({
 
   function retryOne(item) {
     if (item.state !== BULK_STATES.failed) return
-    const suggestLimit = createConcurrencyLimiter(BULK_SUGGEST_CONCURRENCY)
     const quotaRef = { hit: Boolean(quotaBanner) }
-    processOne(item, (task) => suggestLimit(task), quotaRef)
+    processOne(item, getSuggestLimit(), quotaRef)
   }
 
-  const readyCount = items.filter(
-    (item) => item.state === BULK_STATES.ready && !item.excluded,
-  ).length
+  const readyCount = items.filter((item) => item.state === BULK_STATES.ready).length
   const editingItem = items.find((item) => item.id === editingId) || null
 
   return (
@@ -325,9 +340,10 @@ export default function BulkUploadSection({
         <div>
           <h3>Bulk upload</h3>
           <p className="lede">
-            Select up to {MAX_BULK_UPLOAD_COUNT} photos from your library. Each
-            row is a short preview. Open a row to edit every tag. Unsaved rows
-            stay in this browser after a reload until you save or replace them.
+            Select up to {MAX_BULK_UPLOAD_COUNT} photos. Each row is a short
+            preview. Open a row to edit every tag. Unsaved rows stay in this
+            browser after a reload, and a new pick is added to the queue until
+            it is full.
           </p>
         </div>
       </div>
@@ -343,7 +359,11 @@ export default function BulkUploadSection({
         />
       </label>
 
-      {capMessage ? <p className="bulk-cap-message">{capMessage}</p> : null}
+      {capMessage ? (
+        <button type="button" className="bulk-cap-message" onClick={() => setCapDialogOpen(true)}>
+          {capMessage}
+        </button>
+      ) : null}
       {quotaBanner ? <p className="error banner">{quotaBanner}</p> : null}
       {batchError ? <p className="error">{batchError}</p> : null}
 
@@ -355,7 +375,7 @@ export default function BulkUploadSection({
               return (
                 <li
                   key={item.id}
-                  className={`bulk-scan-row${item.excluded ? ' is-excluded' : ''}${item.state === BULK_STATES.saved ? ' is-saved' : ''}`}
+                  className={`bulk-scan-row${item.state === BULK_STATES.saved ? ' is-saved' : ''}`}
                 >
                   <button
                     type="button"
@@ -374,27 +394,42 @@ export default function BulkUploadSection({
                     <span className="bulk-scan-meta">{categories || '—'}</span>
                     <span className="bulk-scan-meta">{item.formality}</span>
                   </button>
-                  <span className={`badge bulk-state bulk-state-${stateBadge(item)}`}>
-                    {stateBadge(item)}
-                  </span>
-                  {item.state === BULK_STATES.failed ? (
-                    <button type="button" className="secondary" onClick={() => retryOne(item)}>
-                      Retry
-                    </button>
-                  ) : null}
-                  {item.state === BULK_STATES.ready && !item.excluded ? (
-                    <button
-                      type="button"
-                      className={confirmingSave === item.id ? 'primary is-confirming' : 'primary'}
-                      onClick={() => saveOne(item)}
-                    >
-                      {confirmingSave === item.id ? 'Saved ✓' : 'Save'}
-                    </button>
-                  ) : null}
+                  <div className="bulk-scan-actions">
+                    <span className={`badge bulk-state bulk-state-${stateBadge(item)}`}>
+                      {stateBadge(item)}
+                    </span>
+                    {item.state === BULK_STATES.failed ? (
+                      <button type="button" className="secondary" onClick={() => retryOne(item)}>
+                        Retry
+                      </button>
+                    ) : null}
+                    {item.state !== BULK_STATES.saved ? (
+                      <button type="button" className="danger" onClick={() => removeFromQueue(item)}>
+                        Remove
+                      </button>
+                    ) : null}
+                    {item.state === BULK_STATES.ready ? (
+                      <button
+                        type="button"
+                        className={confirmingSave === item.id ? 'primary is-confirming' : 'primary'}
+                        onClick={() => saveOne(item)}
+                      >
+                        {confirmingSave === item.id ? 'Saved ✓' : 'Save'}
+                      </button>
+                    ) : null}
+                  </div>
                 </li>
               )
             })}
           </ul>
+          <p className="bulk-scan-key">
+            <span>Picture</span>
+            <span>Color swatch</span>
+            <span className="bulk-scan-key-wide">Hex code</span>
+            <span>Item Name</span>
+            <span className="bulk-scan-key-wide">Category</span>
+            <span className="bulk-scan-key-wide">Formality</span>
+          </p>
 
           <div className="bulk-actions">
             <button
@@ -409,10 +444,17 @@ export default function BulkUploadSection({
         </>
       ) : null}
 
-      {capDialog ? (
-        <Dialog title="Bulk upload limit" onClose={() => setCapDialog('')}>
-          <p>{capDialog}</p>
-          <button type="button" className="primary" onClick={() => setCapDialog('')}>
+      {capDialogOpen && capDetail ? (
+        <Dialog title="Bulk upload limit" onClose={() => setCapDialogOpen(false)}>
+          <p>{capDetail.lead}</p>
+          <ul className="bulk-cap-names">
+            {capDetail.names.map((name, index) => (
+              <li key={`${name}-${index}`} title={name}>
+                {name}
+              </li>
+            ))}
+          </ul>
+          <button type="button" className="primary" onClick={() => setCapDialogOpen(false)}>
             OK
           </button>
         </Dialog>
@@ -426,7 +468,7 @@ export default function BulkUploadSection({
           confirmingSave={confirmingSave}
           onClose={() => setEditingId(null)}
           onUpdate={updateItem}
-          onExclude={handleExcludeToggle}
+          onRemove={removeFromQueue}
           onSave={saveOne}
           onRetry={retryOne}
         />
@@ -442,12 +484,12 @@ function BulkEditDialog({
   confirmingSave,
   onClose,
   onUpdate,
-  onExclude,
+  onRemove,
   onSave,
   onRetry,
 }) {
   const pickerValue = isValidHex(item.hex) ? toHex(item.hex) : '#808080'
-  const editable = item.state === BULK_STATES.ready && !item.excluded
+  const editable = item.state === BULK_STATES.ready
   const duplicate =
     item.state === BULK_STATES.ready || item.state === BULK_STATES.saved
       ? findDuplicateMatch(
@@ -641,23 +683,24 @@ function BulkEditDialog({
             </p>
           ) : null}
           {item.error ? <p className="error">{item.error}</p> : null}
-          {item.state !== BULK_STATES.saved ? (
-            <label className="checkbox compact">
-              <input type="checkbox" checked={item.excluded} onChange={() => onExclude(item)} />
-              Exclude from save
-            </label>
-          ) : (
+          {item.state === BULK_STATES.saved ? (
             <p className="hint">Saved to wardrobe.</p>
+          ) : (
+            <div className="bulk-edit-actions">
+              <button type="button" className="danger" onClick={() => onRemove(item)}>
+                Remove
+              </button>
+              {item.state === BULK_STATES.ready ? (
+                <button
+                  type="button"
+                  className={confirmingSave === item.id ? 'primary is-confirming' : 'primary'}
+                  onClick={() => onSave(item)}
+                >
+                  {confirmingSave === item.id ? 'Saved ✓' : 'Save'}
+                </button>
+              ) : null}
+            </div>
           )}
-          {item.state === BULK_STATES.ready && !item.excluded ? (
-            <button
-              type="button"
-              className={confirmingSave === item.id ? 'primary is-confirming' : 'primary'}
-              onClick={() => onSave(item)}
-            >
-              {confirmingSave === item.id ? 'Saved ✓' : 'Save'}
-            </button>
-          ) : null}
         </div>
       ) : null}
     </Dialog>
